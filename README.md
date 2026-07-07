@@ -1,25 +1,176 @@
-# 赛题题目：面向智能机器人的AIOS（高校赛题）
+# Intro
+该文档记录 `boot.sd` 和 `fip.bin` 文件的构建 (包括单一 image 文件构建), 以及 StarryOS 在 SG2002 上的启动流程.
 
-## 赛题说明：
-AI大小模型、具身智能等技术飞速发展，推动了AIoT、无人系统、机器人从实验室走向复杂应用场景。常见的机器人应用集成了高频视觉感知、实时决策与运动控制，对系统的实时性与资源利用率提出了很高要求。然而，当前此类应用主要基于 Linux 等通用操作系统构建。尽管 Linux 凭借丰富的驱动与软件生态降低了开发门槛，但其通用架构带来的冗余服务开销、长执行路径开销、复杂调度开销以及大容量内存需求开销等，逐渐成为制约机器人端到端性能（如延迟、抖动）的瓶颈。在边缘算力受限的场景下，如何在内核和系统层面设计并实现深度定制、灵活组合、跨层优化等关键技术，释放硬件的极致性能，突破通用Linux内核的限制，成为面向智能机器人的新型智能操作系统的重要课题。
-## 赛题要求：
-- 总体要求：参赛队伍将开源智能机器人（基于 RK3588/SG2002处理器开发板）的操作系统内核从 基于C语言的Linux 完整迁移至基于Rust语言的组件化操作系统内核。在此基础上，实现或补全系统调用、文件接口、关键外设驱动（NPU/USB/UART/摄像头等），打通 基于NPU的推理链路，并通过内核级的调度/内存管理优化与模型轻量化手段，在性能（端到端延迟、启动速度、推理帧数）、硬件资源消耗与能耗比等方面超越 Linux 基线。
-- 第一阶段要求：将基于Rust语言的组件化操作系统内核，如StarryOS等，在rk3588/sg2002开发板上启动，之后运行开源机器人程序，在rk3588/sg2002开发板上的npu需要将模型进行识别加载推理，启动后若遇到相关问题需要进行解决，完成基本的模型加载。
-- 第二阶段要求：实现或者完善基于Rust语言的组件化操作系统内核，如StarryOS等的USB等驱动能够支持机器人机械臂的感知，实现机器人的串口支持机械臂电机驱动，完成加载模型成功拾取网球等物体。
-- 第三阶段要求：对照Linux基线的功能实现，优化基于Rust语言的组件化操作系统内核，如StarryOS等，在项目中的性能表现包括但不限于模型推理效果，功耗，启动延迟等，能够达到基于基于Rust语言的组件化操作系统内核，如StarryOS内核等的开源网球拾取机器人在性能、资源消耗和能耗上优于基于Linux内核的开源网球拾取机器人。 学生可以参考以下几个优化的方向：系统加电后的启动速度，识别网球的距离/准确度，推理一帧所需时间，机械臂的定位和抓取速度，以及对系统资源（内存）的消耗等。
-## 评分细则（明确评审角度、标准和分值范围）：
-- 系统架构与底层创新性（30分）：框架设计的合理性、对AI模型、AI Agent的支持，以及技术实现难度。
-- 可靠性与完成任务能力（30分）：加载了基于Rust语言的组件化操作系统和AI应用的rk3588/sg2002移动抓取机器人在完成多次移动抓取任务上的稳定性和准确度。
-- 执行效率与性能开销（20分）：基于Rust语言的组件化操作系统和相关AI应用的rk3588/sg2002移动抓取机器人与基于Linux和相关AI应用的rk3588/sg2002移动抓取机器人在完成同样移动抓取任务上的执行效率。
-- 代码规范与开源生态贡献（20分）：提交的系统镜像（ROM）、自动化编译脚本、设计报告、测试文档是否完整；方案是否具备良好的跨平台或跨版本迁移潜力 。
-## 赛题联系人：
-陈老师  yuchen@tsinghua.edu.cn  
-## 参考资料：
-- https://github.com/rcore-os/tgoskits ：基于Rust的操作系统内核组件集合
-- https://github.com/rcore-os/tgoskits/tree/dev/os/StarryOS ：兼容Linux Syscall&基于Rust的Starry宏内核
-- https://opencamp.cn/os2edu/camp/2026spring ：2026 春夏季开源操作系统训练营。
-- https://opencamp.cn/AI4OSE/camp/2026s ：2026春夏季AI4OSE训练营
-- https://opencamp.cn/ChenLongOS/camp/2026S ：2026 春季辰龙操作系统训练营
-- https://opencamp.cn/ChenLong/camp/S2 ：辰龙机器人 2026 夏季训练营
-## 参赛资源支持：
-建议参赛队伍基于QEMU虚拟机环境进行前期实验，并在比赛期间及时联系赛题联系人获取sg2002/rk3588开发板和sg2002/rk3588机器人进行开发。
+最终需要的文件有:
+```
+.
+├── boot.its    # Image Tree Source 文件, 描述 FIT 镜像需要包含的组件
+├── boot.sd     # Flatted Image Tree 文件, `.sd` 后缀只是说明其用于 SD 卡上启动, 是一种内核打包格式, 含内核镜像, 设备树
+├── fdt.dtb     # 设备树文件
+├── fip.bin     # Firmware Image Package, 一种固件打包格式, 含 OpenSBI 和 U-Boot
+├── kernel      # StarryOS 镜像
+└── rootfs-riscv64.img # 硬盘文件
+
+1 directory, 6 files
+```
+
+# Env
+当前环境是 Arch Linux (Linux 7.0.14-arch1-1), 安装一些工具链 (可以根据报错看缺啥就装啥):
+```sh
+sudo pacman -S uboot-tools
+wget https://musl.cc/riscv64-linux-musl-cross.tgz
+tar xvf riscv64-linux-musl-cross.tgz
+export PATH=$(pwd)/riscv64-linux-musl-cross/bin:$PATH
+```
+
+拉取 `tgoskits` 仓库:
+```sh
+mkdir ~/workspace
+cd ~/workspace
+git clone https://github.com/rcore-os/tgoskits.git
+```
+
+复制出设备树文件:
+```sh
+mkdir ~/workspace/genimage
+cd ~/workspace/genimage
+cp ~/workspace/tgoskits/os/StarryOS/configs/board/licheerv-nano-sg2002.dtb fdt.dtb
+```
+
+拉取 Disk 文件 (含 BusyBox):
+```sh
+cd ~/workspace/genimage
+curl -f -L https://github.com/Starry-OS/rootfs/releases/download/20260214/rootfs-riscv64.img.xz  -O
+xz -d rootfs-riscv64.img.xz
+```
+
+拉取 `duo-buildroot-sdk-v2` 仓库, 用于后续编译构建 `fip` 文件:
+
+```sh
+cd ~/workspace
+git clone https://github.com/milkv-duo/duo-buildroot-sdk-v2.git
+cd duo-buildroot-sdk-v2
+git clone https://github.com/milkv-duo/host-tools.git
+```
+
+# 编译 StarryOS 内核二进制
+```sh
+cd ~/workspace/tgoskits
+cargo xtask starry build --config os/StarryOS/configs/board/licheerv-nano-sg2002.toml
+
+cd ~/workspace/genimage
+cp ~/workspace/tgoskits/target/riscv64gc-unknown-linux-musl/release/starryos.bin kernel
+```
+
+# 编译 FIP 文件
+```
+cd ~/workspace/duo-buildroot-sdk-v2
+source build/envsetup_milkv.sh milkv-duo256m-musl-riscv64-sd
+build_fsbl
+cp fsbl/build/sg2002_milkv_duo256m_musl_riscv64_sd/fip.bin ~/workspace/genimage
+```
+
+# 编写 Image Tree Source 文件
+```sh
+cd ~/workspace/genimage
+cat > boot.its <<EOF
+/dts-v1/;
+/ {
+    description = "StarryOS SG2002";
+    #address-cells = <1>;
+    images {
+        kernel-1 {
+            data = /incbin/("kernel");
+            type = "kernel"; arch = "riscv"; os = "linux";
+            compression = "none";
+            load = <0x80200000>; entry = <0x80200000>;
+            hash-1 { algo = "sha256"; };
+        };
+        fdt-1 {
+            data = /incbin/("fdt.dtb");
+            type = "flat_dt"; arch = "riscv";
+            compression = "none";
+            hash-1 { algo = "sha256"; };
+        };
+    };
+    configurations {
+        default = "config-sg2002_milkv_duo256m_musl_riscv64_sd";
+        config-sg2002_milkv_duo256m_musl_riscv64_sd { kernel = "kernel-1"; fdt = "fdt-1"; };
+    };
+};
+EOF
+```
+
+# 生成 Flatted Image Tree 文件
+```sh
+cd ~/workspace/genimage
+mkimage -f boot.its boot.sd
+```
+
+# 生成 image 镜像并写入 SD 卡
+由于 `rootfs-riscv64.img` 的大小已经是 `1.1GB`, 这里假设镜像的大小为 `1.5GB`:
+```sh
+IMAGE_SIZE=1536 # 1.5GB
+```
+
+创建一个 1.5GB 大小的文件作为镜像载体:
+```sh
+sudo dd if=/dev/zero of=sd.img bs=1M count=$IMAGE_SIZE status=progress
+```
+
+给文件分区:
+```sh
+sudo sfdisk sd.img << EOF
+label: dos
+,64M,c,*
+,,L
+EOF
+```
+- `label: dos` 表示建立 MBR 分区表
+- `,64M,c,*` 表示从默认起点 (2048扇区) 开始, 把大小为 64MiB 的空间标记类型为 `0x0c` (FAT32 LBA)
+- `,,L` 将剩余空间标记为类型 `0x83` (Linux)
+(这部分应该只是写到超级块内)
+
+将文件挂载为 loop device:
+```sh
+LOOP=$(sudo losetup -fP --show sd.img)
+echo "Loop device: $LOOP"
+# Loop device: /dev/loop0
+```
+
+格式化分区:
+```sh
+sudo mkfs.vfat -F 16 ${LOOP}p1
+sudo mkfs.ext4 -F ${LOOP}p2
+```
+
+挂载分区到本地, 便于复制文件:
+```sh
+mkdir -p /tmp/boot /tmp/rootfs
+sudo mount ${LOOP}p1 /tmp/boot
+sudo mount ${LOOP}p2 /tmp/rootfs
+```
+
+写入 boot 分区文件:
+```sh
+sudo cp boot.sd fip.bin /tmp/boot/
+```
+
+写入文件系统:
+```sh
+sudo dd if=disk.img of=${LOOP}p2 bs=1M status=progress
+```
+
+卸载并释放 loop device:
+```sh
+sudo umount /tmp/boot /tmp/rootfs
+sudo losetup -d $LOOP
+rmdir /tmp/boot /tmp/rootfs
+```
+
+# 烧录到 SD 卡
+注意用 `lsblk` 或 `fdisk` 确认 SD 卡的设备名:
+```sh
+cd /workspace/genimage
+sudo dd if=sd.img of=/dev/sda status=progress
+```
