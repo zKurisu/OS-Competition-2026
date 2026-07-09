@@ -40,6 +40,8 @@ I/O 大小(最小/最佳)：512 字节 / 512 字节
 4. DWC2 4.20a 复位：按 GSNPSID 用 CSFTRST_DONE 判定复位完成（核心根因）。
 5. 热插拔：udc_disable 退出时 soft-disconnect 拉低 D+。
 
+***
+
 1. defconfig 修改
 ```config
 # USB gadget + UMS (USB Mass Storage) for starryos development
