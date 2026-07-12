@@ -1,9 +1,24 @@
 # Intro
-这里记录下最基础的驱动编写流程, 以 QEMU Virt 主机的 UART NS16550 为例
+这里记录下最基础的驱动编写流程, 以 QEMU Virt 主机的 UART NS16550 为例. 示例程序已经放在 `my-bare` 目录下, 可以直接尝试:
 
-裸机驱动其实也就是裸机上运行的程序, 通过 MMIO 映射完成对外设的操作. 因此第一步就是构建裸机运行环境.
+```sh
+cd my-bare
+
+# 编译
+cargo build --release
+
+# 运行 (Ctrl+A 再按 X 退出)
+qemu-system-riscv64 \
+    -machine virt -cpu rv64 -smp 1 -m 128M -nographic \
+    -bios default \
+    -kernel target/riscv64gc-unknown-none-elf/release/my-bare
+```
+
+下面内容是完整的流程解释.
 
 # 构建裸机运行环境
+裸机驱动其实也就是裸机上运行的程序, 通过 MMIO 映射完成对外设的操作. 因此第一步就是构建裸机运行环境.
+
 先创建一个 `cargo` 项目, 这里暂时用 `2021` 版:
 ```sh
 cargo new my-bare
@@ -154,7 +169,7 @@ NS16559 内部有一组 8 位寄存器, 相当于每个地址偏移对应一个�
 
 对于 `LSR`, 这里用到两个 bits:
 | 位     | 常量     | 含义        |
-|-------|--------|-----------|---------------------------------|
+|-------|--------|-----------|
 | bit 0 | LSR_RX | 为 1 表示收到一个字节    |
 | bit 5 | LSR_TX | 为 1 表示发送器空闲，可以写 |
 
