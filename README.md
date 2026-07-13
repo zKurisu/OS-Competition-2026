@@ -14,13 +14,6 @@
 1 directory, 6 files
 ```
 
-需要注意当前 `fip.bin` 的编译有 3 套方案:
-1. 原始 duo-buildroot-sdk-v2 仓库
-2. 启用了 USB Gadget 和 RNDIS 的 duo-buildroot-sdk-v2, 依赖仓库的 submodule
-3. 启用了 UMS 的 LicheeRV-Nano-Build, 依赖仓库的 submodule
-
-当前文档以 `1.` 为示例, `2` 和 `3` 分别查看对应仓库的 README.md ([uboot-rndis.md](uboot-rndis.md) 和 [uboot-ums.md](uboot-ums.md) 也有说明), 后续也会合并 `2` 和 `3` 的变更.
-
 # Env
 当前环境是 Arch Linux (Linux 7.0.14-arch1-1), 安装一些工具链 (可以根据报错看缺啥就装啥):
 ```sh
@@ -28,12 +21,20 @@ sudo pacman -S uboot-tools
 wget https://musl.cc/riscv64-linux-musl-cross.tgz
 tar xvf riscv64-linux-musl-cross.tgz
 export PATH=$(pwd)/riscv64-linux-musl-cross/bin:$PATH
-export BUILD_WORKSPACE=$BUILD_WORKSPACE
+```
+
+拉取当前仓库:
+```sh
+git clone git@github.com:zKurisu/OS-Competition-2026.git
+cd OS-Competition-2026
+export BUILD_WORKSPACE=$(pwd)
+git submodule update --init --recursive --progress
+cd LicheeRV-Nano-Build
+git clone https://github.com/sophgo/host-tools --depth=1
 ```
 
 拉取 `tgoskits` 仓库:
 ```sh
-mkdir -p $BUILD_WORKSPACE
 cd $BUILD_WORKSPACE
 git clone https://github.com/rcore-os/tgoskits.git
 ```
@@ -50,15 +51,7 @@ cp $BUILD_WORKSPACE/tgoskits/os/StarryOS/configs/board/licheerv-nano-sg2002.dtb 
 cd $BUILD_WORKSPACE/genimage
 curl -f -L https://github.com/Starry-OS/rootfs/releases/download/20260214/rootfs-riscv64.img.xz  -O
 xz -d rootfs-riscv64.img.xz
-```
-
-拉取 `duo-buildroot-sdk-v2` 仓库, 用于后续编译构建 `fip` 文件:
-
-```sh
-cd $BUILD_WORKSPACE
-git clone https://github.com/milkv-duo/duo-buildroot-sdk-v2.git
-cd duo-buildroot-sdk-v2
-git clone https://github.com/milkv-duo/host-tools.git
+mv rootfs-riscv64.img disk.img
 ```
 
 # 编译 StarryOS 内核二进制
@@ -72,9 +65,9 @@ cp $BUILD_WORKSPACE/tgoskits/target/riscv64gc-unknown-linux-musl/release/starryo
 
 # 编译 FIP 文件
 ```
-cd $BUILD_WORKSPACE/duo-buildroot-sdk-v2
-bash -c "source build/envsetup_milkv.sh milkv-duo256m-musl-riscv64-sd && build_fsbl"
-cp fsbl/build/sg2002_milkv_duo256m_musl_riscv64_sd/fip.bin $BUILD_WORKSPACE/genimage
+cd $BUILD_WORKSPACE/LicheeRV-Nano-Build
+bash -c "source build/cvisetup.sh && defconfig sg2002_licheervnano_sd && build_uboot"
+cp install/soc_sg2002_licheervnano_sd//fip.bin $BUILD_WORKSPACE/genimage
 ```
 
 # 编写 Image Tree Source 文件
@@ -101,8 +94,8 @@ cat > boot.its <<EOF
         };
     };
     configurations {
-        default = "config-sg2002_milkv_duo256m_musl_riscv64_sd";
-        config-sg2002_milkv_duo256m_musl_riscv64_sd { kernel = "kernel-1"; fdt = "fdt-1"; };
+        default = "config-sg2002_licheervnano_sd";
+        config-sg2002_licheervnano_sd { kernel = "kernel-1"; fdt = "fdt-1"; };
     };
 };
 EOF
