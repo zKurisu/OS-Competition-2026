@@ -1,3 +1,5 @@
+- [starry_driver_start.md](starry_driver_start.md) 文档记录了给 StarryOS 编写驱动的流程演示
+
 # Intro
 这里记录下最基础的驱动编写流程, 以 QEMU Virt 主机的 UART NS16550 为例. 示例程序已经放在 `my-bare` 目录下, 可以直接尝试:
 
