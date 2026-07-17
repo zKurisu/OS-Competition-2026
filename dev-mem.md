@@ -20,4 +20,4 @@
 
 3. 实现了一个简单快速的mmap程序，通过写内存实现驱动gpio
 
-具体代码和补丁(dev_mem_gpio.patch)见分支 [tgos-patches](./tgos-patches)
+具体代码和补丁(dev_mem_gpio.patch)见分支 [tgos-patches](../tgos-patches)
