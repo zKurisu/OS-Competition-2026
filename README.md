@@ -1,25 +1,156 @@
-# 赛题题目：面向智能机器人的AIOS（高校赛题）
+# Intro
+该分支记录 Linux baseline 测试流程. 涉及几个仓库:
+- [AKA-00](https://github.com/chenlongos/AKA-00), 在当前分支只负责提供一些运行库, 其 release 里面有 image 也要用到
+- [akars](https://github.com/chenlongos/akars), 包含网球抓取的一个 rust 用户态程序, 可以在 sg2002 上用 TPU 完成推理
 
-## 赛题说明：
-AI大小模型、具身智能等技术飞速发展，推动了AIoT、无人系统、机器人从实验室走向复杂应用场景。常见的机器人应用集成了高频视觉感知、实时决策与运动控制，对系统的实时性与资源利用率提出了很高要求。然而，当前此类应用主要基于 Linux 等通用操作系统构建。尽管 Linux 凭借丰富的驱动与软件生态降低了开发门槛，但其通用架构带来的冗余服务开销、长执行路径开销、复杂调度开销以及大容量内存需求开销等，逐渐成为制约机器人端到端性能（如延迟、抖动）的瓶颈。在边缘算力受限的场景下，如何在内核和系统层面设计并实现深度定制、灵活组合、跨层优化等关键技术，释放硬件的极致性能，突破通用Linux内核的限制，成为面向智能机器人的新型智能操作系统的重要课题。
-## 赛题要求：
-- 总体要求：参赛队伍将开源智能机器人（基于 RK3588/SG2002处理器开发板）的操作系统内核从 基于C语言的Linux 完整迁移至基于Rust语言的组件化操作系统内核。在此基础上，实现或补全系统调用、文件接口、关键外设驱动（NPU/USB/UART/摄像头等），打通 基于NPU的推理链路，并通过内核级的调度/内存管理优化与模型轻量化手段，在性能（端到端延迟、启动速度、推理帧数）、硬件资源消耗与能耗比等方面超越 Linux 基线。
-- 第一阶段要求：将基于Rust语言的组件化操作系统内核，如StarryOS等，在rk3588/sg2002开发板上启动，之后运行开源机器人程序，在rk3588/sg2002开发板上的npu需要将模型进行识别加载推理，启动后若遇到相关问题需要进行解决，完成基本的模型加载。
-- 第二阶段要求：实现或者完善基于Rust语言的组件化操作系统内核，如StarryOS等的USB等驱动能够支持机器人机械臂的感知，实现机器人的串口支持机械臂电机驱动，完成加载模型成功拾取网球等物体。
-- 第三阶段要求：对照Linux基线的功能实现，优化基于Rust语言的组件化操作系统内核，如StarryOS等，在项目中的性能表现包括但不限于模型推理效果，功耗，启动延迟等，能够达到基于基于Rust语言的组件化操作系统内核，如StarryOS内核等的开源网球拾取机器人在性能、资源消耗和能耗上优于基于Linux内核的开源网球拾取机器人。 学生可以参考以下几个优化的方向：系统加电后的启动速度，识别网球的距离/准确度，推理一帧所需时间，机械臂的定位和抓取速度，以及对系统资源（内存）的消耗等。
-## 评分细则（明确评审角度、标准和分值范围）：
-- 系统架构与底层创新性（30分）：框架设计的合理性、对AI模型、AI Agent的支持，以及技术实现难度。
-- 可靠性与完成任务能力（30分）：加载了基于Rust语言的组件化操作系统和AI应用的rk3588/sg2002移动抓取机器人在完成多次移动抓取任务上的稳定性和准确度。
-- 执行效率与性能开销（20分）：基于Rust语言的组件化操作系统和相关AI应用的rk3588/sg2002移动抓取机器人与基于Linux和相关AI应用的rk3588/sg2002移动抓取机器人在完成同样移动抓取任务上的执行效率。
-- 代码规范与开源生态贡献（20分）：提交的系统镜像（ROM）、自动化编译脚本、设计报告、测试文档是否完整；方案是否具备良好的跨平台或跨版本迁移潜力 。
-## 赛题联系人：
-陈老师  yuchen@tsinghua.edu.cn  
-## 参考资料：
-- https://github.com/rcore-os/tgoskits ：基于Rust的操作系统内核组件集合
-- https://github.com/rcore-os/tgoskits/tree/dev/os/StarryOS ：兼容Linux Syscall&基于Rust的Starry宏内核
-- https://opencamp.cn/os2edu/camp/2026spring ：2026 春夏季开源操作系统训练营。
-- https://opencamp.cn/AI4OSE/camp/2026s ：2026春夏季AI4OSE训练营
-- https://opencamp.cn/ChenLongOS/camp/2026S ：2026 春季辰龙操作系统训练营
-- https://opencamp.cn/ChenLong/camp/S2 ：辰龙机器人 2026 夏季训练营
-## 参赛资源支持：
-建议参赛队伍基于QEMU虚拟机环境进行前期实验，并在比赛期间及时联系赛题联系人获取sg2002/rk3588开发板和sg2002/rk3588机器人进行开发。
+# Env
+拉取并编译用户态程序:
+```sh
+git clone https://github.com/chenlongos/akars.git
+cd akars
+scripts/setup.sh
+scripts/build.sh
+```
+
+拉取并编译 `AKA-00` 机器人控制:
+```sh
+git clone https://github.com/chenlongos/AKA-00.git
+cd AKA-00
+# 构建（在开发机上执行）
+./build_release.sh              # 使用已有前端, 依赖问题可能得自行解决
+./build_release.sh --rebuild    # 重新构建前端后打包
+# 输出: dist/aka-server (约 9MB 自解压可执行文件)
+```
+
+拉取镜像, 并插入前面构建的文件到文件系统中:
+```sh
+wget https://github.com/chenlongos/AKA-00/releases/download/v0.4/sd_licheervnano_with_AKA00_v0_4.img.xz
+xz -d sd_licheervnano_with_AKA00_v0_4.img.xz
+sudo losetup -fP --show sd_licheervnano_with_AKA00_v0_4.img
+# /dev/loop0, 注意检查你自己的回环设备
+sudo mount /dev/loop0p2 /mnt
+
+cd akars
+sudo cp target/riscv64gc-unknown-linux-musl/release/akars /mnt/root/
+sudo cp yolov8n_tennis_v2.cvimodel /mnt/root
+
+cd AKA-00
+sudo cp dist/aka-00-server /mnt/root
+sudo umount /mnt
+sudo losetup -d /dev/loop0
+```
+
+烧录到 SD 卡:
+
+![](./.github/img/sd-on-reader.jpg)
+
+```sh
+lsblk   # 需要确定自己的 SD 卡块设备路径
+sudo dd if=sd_licheervnano_with_AKA00_v0_4.img of=/dev/sda status=progress   # 注意块设备路径是否正确, 且不加分区编号
+```
+
+# Borad Init
+将 SD 卡插到 SG2002 上, 先连好串口并启动 `minicom` (或其他串口程序):
+
+![](./.github/img/pc-connect-serial.jpg)
+
+```sh
+ls /dev | grep -i usb # 检查设备路径
+# ttyUSB0
+sudo minicom -D /dev/ttyUSB0 -b 115200
+```
+
+之后上电观察输出并进入系统, 用户名 `root`, 密码 `root`.
+
+之后运行 `aka-00-server` 程序进行初始化:
+
+```sh
+# ls
+AKA-00                      akars
+aka-00-server               yolov8n_tennis_v2.cvimodel
+# ./aka-00-server --init
+=== AKA-00 First-Time Setup ===
+Installing AKA-00 to /root/AKA-00 ...
+Install done.
+=== 安装 AP热点 + DHCP(稳定版) ===
+wlan0: interface state UNINITIALIZED->ENABLED
+wlan0: AP-ENABLED
+✅ 热点: chenlong-robot-227229
+✅ DHCP已启动
+连接后访问: http://192.168.4.1
+已启用wlan1 作为wifi连接网口
+Setup complete.
+  Service will auto-start on next boot.
+```
+
+之后在宿主机上也能看到类似 `chenlong-robot-227229` 的 wifi, 连接后就可以通过内网 `ssh` 连接开发板了, 开发板的 ip 是 `192.168.4.1`, 这里用 `iwctl` 连接 wifi 为例:
+
+```sh
+iwctl station wlan0 scan
+iwctl station wlan0 get-networks
+iwctl station wlan0 connect "chenlong-robot-227229" # 注意 wifi 名可能不同
+ssh root@192.168.4.1
+```
+
+# Network configuration
+板子上会有两个无线接口:
+```sh
+4: wlan0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
+    link/ether 14:0a:02:d3:77:9c brd ff:ff:ff:ff:ff:ff
+    inet 192.168.4.1/24 brd 192.168.4.255 scope global wlan0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::160a:2ff:fed3:779c/64 scope link
+       valid_lft forever preferred_lft forever
+5: wlan1: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000
+    link/ether 14:0a:02:d3:77:9d brd ff:ff:ff:ff:ff:ff
+```
+- `wlan0` 用于连接内网
+- `wlan1` 用于连接外网
+
+有两种配置外网的方案, 一个是浏览器访问 `192.168.4.1`, 在设置里面手动进行 wifi 连接. 另一种是命令行直接连接, 这里以后者为例 (注意自己填 wifi 名和密码):
+```sh
+$ cat > wpa_supplicant.conf <<EOF
+ctrl_interface=/var/run/wpa_supplicant
+
+network={
+    ssid="wifi-name"
+    psk="password"
+}
+EOF
+
+$ wpa_supplicant -B -i wlan1 -c wpa_supplicant.conf
+$ udhcpc -i wlan1
+
+$ ip a
+4: wlan0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
+    link/ether 14:0a:02:d3:77:9c brd ff:ff:ff:ff:ff:ff
+    inet 192.168.4.1/24 brd 192.168.4.255 scope global wlan0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::160a:2ff:fed3:779c/64 scope link
+       valid_lft forever preferred_lft forever
+5: wlan1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
+    link/ether 14:0a:02:d3:77:9d brd ff:ff:ff:ff:ff:ff
+    inet 192.168.43.171/24 brd 192.168.43.255 scope global wlan1
+       valid_lft forever preferred_lft forever
+    inet6 fe80::160a:2ff:fed3:779d/64 scope link
+       valid_lft forever preferred_lft forever
+```
+
+如果你在 wifi 所在局域网, 就能直接 `ssh` 连接了:
+```sh
+$ ssh root@192.168.43.171
+```
+
+# Inference
+```sh
+$ cd /root
+$ export LD_LIBRARY_PATH=/root/AKA-00/lib:$LD_LIBRARY_PATH
+$ ./akars detect yolov8n_tennis_v2.cvimodel AKA-00/images/1.jpeg --out result.jpg
+version: 1.4.0
+yolov8n_tennis Build at 2026-04-24 12:06:11 For platform cv181x
+Max SharedMem size:2167200
+[detect] 1 detection(s) on AKA-00/images/1.jpeg
+  #0 class=0 score=0.930 box=(cx=329.6, cy=1292.8, w=480.0, h=524.8)
+[detect] annotated image written to result.jpg
+```
+耗时大概 `60s`, 可以自行修改该程序打印一些时间信息.
