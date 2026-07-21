@@ -154,3 +154,17 @@ Max SharedMem size:2167200
 [detect] annotated image written to result.jpg
 ```
 耗时大概 `60s`, 可以自行修改该程序打印一些时间信息.
+
+StarryOS 上运行的输出为:
+```
+root@starry:/root # version: 1.4.0
+yolov8n_tennis Build at 2026-04-24 12:06:11 For platform cv181x
+Max SharedMem size:2167200
+[detect] model loaded in 4062.3 ms
+[tpu] decode=2430441 us, resize=66111 us, forward=39630 us, postprocess=14278 us
+[tpu] draw=1042742.5 ms
+[detect] annotated image written to result.jpg
+[detect] 1 detection(s) on AKA-00/images/1.jpeg
+  #0 class=0 score=0.930 box=(cx=329.6, cy=1292.8, w=480.0, h=524.8)
+[detect] timing: load=4062.3 ms, total=1049447.0 ms
+```
