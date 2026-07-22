@@ -60,3 +60,9 @@ git diff some-commit-hash-1 some-commit-hash-2 > change.patch
 
 > 时间: 2026-07-22  
 > 基于 tgoskits commit hash: 1bba09815
+
+[dns_2026-07-22_1bba09815.patch](dns_2026-07-22_1bba09815.patch)
+
+> 时间: 2026-07-22  
+> 基于 tgoskits commit hash: 1bba09815  
+> 基于 patches: wifi, wext
