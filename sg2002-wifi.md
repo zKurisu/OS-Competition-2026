@@ -35,3 +35,9 @@ cargo xtask starry build -c os/StarryOS/configs/board/licheerv-nano-sg2002-wifi.
 用户态程序在 `tgoskits` 仓库下的 `apps/starry/picoclaw-cli/wifi_switch.c`
 
 具体可参考 `apps/starry/picoclaw-cli/WIFI_SWITCH_DEMO.md`
+
+编译命令
+
+```bash
+riscv64-linux-musl-gcc tgoskits/apps/starry/picoclaw-cli/wifi_switch.c -o wifi_switch
+```
