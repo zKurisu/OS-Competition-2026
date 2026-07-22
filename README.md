@@ -155,8 +155,11 @@ Max SharedMem size:2167200
 ```
 耗时大概 `60s`, 可以自行修改该程序打印一些时间信息.
 
-StarryOS 上运行的输出为:
+## Inference on StarryOS
+仅仅把 `img` 文件中第一个分区里的 `boot.sd` 替换掉, 重新打包 StarryOS, 然后运行 `akars` 用户态程序输出为:
 ```
+root@starry:/root # export LD_LIBRARY_PATH=/root/AKA-00/lib:$LD_LIBRARY_PATH
+root@starry:/root # ./akars detect yolov8n_tennis_v2.cvimodel AKA-00/images/1.jpeg --out result.jpg
 root@starry:/root # version: 1.4.0
 yolov8n_tennis Build at 2026-04-24 12:06:11 For platform cv181x
 Max SharedMem size:2167200
@@ -168,3 +171,17 @@ Max SharedMem size:2167200
   #0 class=0 score=0.930 box=(cx=329.6, cy=1292.8, w=480.0, h=524.8)
 [detect] timing: load=4062.3 ms, total=1049447.0 ms
 ```
+
+# Web Control
+AKA-00 会提供一个前端用于控制机器人, 但需要注意, 初始情况下抓取和释放的接口看不见效果:
+```sh
+# 抓取
+curl "http://192.168.1.100/api/control?action=grab"
+
+# 释放
+curl "http://192.168.1.100/api/control?action=release"
+```
+
+因为程序在启动时会加载 `AKA-00/arm_angle.json` 文件里设置的舵机控制角度, 默认全部为 `150` 度, 意味着抓取和释放对应的角度是一样的, 反应在机器人上就是机械臂没有移动, 需要把 `AKA-00/arm_angles_default.json` 文件的内容复制到 `AKA-00/arm_angles_default` 中.
+
+要测试网球追踪, 需要在 `Demo` 处启动 `tennis`.
