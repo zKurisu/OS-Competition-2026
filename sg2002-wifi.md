@@ -10,7 +10,7 @@ wifi 的 硬件驱动为 `ax-driver/src/net/aic8800.rs`
 
 因此需要将启用 IRQ 的代码提前
 
-代码修改见 [patch](../../tree/tgos-patches/wifi_2026-07-22_1bba09815.md)
+代码修改见 [wifi-patch](../../tree/tgos-patches/wifi_2026-07-22_1bba09815.md)
 
 ### wext.rs
 
@@ -18,7 +18,21 @@ wifi 接口为 `os/StarryOS/kernel/src/file/wext.rs`
 
 在 starryos 上，wifi 用户态程序缺少一些 ioctl 接口，因此需要补充一些接口
 
-代码修改见 [patch](../../tree/tgos-patches/wext_2026-07-22_1bba09815.md)
+代码修改见 [wext-patch](../../tree/tgos-patches/wext_2026-07-22_1bba09815.md)
+
+### 自动写入 resolv.conf
+
+内核获取到来自路由的 DNS 后保存在内存里，其他用户态程序不知道，导致无法访问域名，只能访问ip
+
+因此使用回调函数在 DNS 改变时自动写入 `/etc/resolv.conf`
+
+| 文件                              | 改动                                                           |
+|-----------------------------------|----------------------------------------------------------------|
+| `net/ax-net/src/lib.rs`           | DNS 变更回调 + `set_dns_change_callback` + `notify_dns_change` |
+| `net/ax-net/src/service.rs`       | `commit_interface_update` 尾部触发通知                         |
+| `os/StarryOS/kernel/src/entry.rs` | `write_resolv_conf` 函数 + 回调注册                            |
+
+代码修改见 [dns-patch](../../tree/tgos-patches/dns_2026-07-22_1bba09815.md)
 
 ## 内核构建
 
