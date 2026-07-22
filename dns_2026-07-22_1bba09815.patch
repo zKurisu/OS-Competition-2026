@@ -1,0 +1,97 @@
+diff --git a/net/ax-net/src/lib.rs b/net/ax-net/src/lib.rs
+index 99c88ffb5..1841ed31d 100644
+--- a/net/ax-net/src/lib.rs
++++ b/net/ax-net/src/lib.rs
+@@ -71,7 +71,7 @@ use alloc::{
+ };
+ use core::{
+     net::{IpAddr, Ipv4Addr},
+-    sync::atomic::{AtomicBool, Ordering},
++    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
+     task::Waker,
+     time::Duration,
+ };
+@@ -159,6 +159,22 @@ static WIFI_CONTROLS: LazyLock<Mutex<Vec<(alloc::string::String, rd_net::WifiCon
+ 
+ static NET_IRQ_NOTIFY: IrqNotify = IrqNotify::new();
+ 
++static DNS_CHANGE_CALLBACK: AtomicUsize = AtomicUsize::new(0);
++
++/// DNS change callback takes `core::net::Ipv4Addr` (not smoltcp) so
++/// consumers like the kernel don't need a smoltcp dependency.
++pub fn set_dns_change_callback(cb: fn(&[Ipv4Addr])) {
++    DNS_CHANGE_CALLBACK.store(cb as usize, Ordering::Release);
++}
++
++pub(crate) fn notify_dns_change(servers: &[Ipv4Addr]) {
++    let ptr = DNS_CHANGE_CALLBACK.load(Ordering::Acquire);
++    if ptr != 0 {
++        let cb: fn(&[Ipv4Addr]) = unsafe { core::mem::transmute(ptr) };
++        cb(servers);
++    }
++}
++
+ const DHCP_BOOTSTRAP_ATTEMPTS: usize = 200;
+ const DHCP_BOOTSTRAP_POLL_INTERVAL: Duration = Duration::from_millis(10);
+ 
+diff --git a/net/ax-net/src/service.rs b/net/ax-net/src/service.rs
+index d37f0b466..052b75552 100644
+--- a/net/ax-net/src/service.rs
++++ b/net/ax-net/src/service.rs
+@@ -274,6 +274,10 @@ impl NetControl {
+         self.routes
+             .write()
+             .replace_ipv4_rules_for_interface(update.interface_id, routes);
++
++        let servers: Vec<Ipv4Address> = state.dns.iter().map(|e| e.server).collect();
++        drop(state);
++        crate::notify_dns_change(&servers);
+     }
+ 
+     fn add_interface(&self, interface: NetInterface, routes: Vec<crate::router::Rule>) {
+diff --git a/os/StarryOS/kernel/src/entry.rs b/os/StarryOS/kernel/src/entry.rs
+index 4ac007ecf..2bf3c5ef7 100644
+--- a/os/StarryOS/kernel/src/entry.rs
++++ b/os/StarryOS/kernel/src/entry.rs
+@@ -2,6 +2,7 @@ use alloc::{
+     string::{String, ToString},
+     sync::Arc,
+ };
++use core::net::Ipv4Addr;
+ 
+ use ax_fs_ng::vfs::FS_CONTEXT;
+ use ax_kernel_guard::NoPreemptIrqSave;
+@@ -18,6 +19,23 @@ use crate::{
+     tracepoint::tracepoint_init,
+ };
+ 
++fn write_resolv_conf(servers: &[Ipv4Addr]) {
++    use core::fmt::Write;
++    let mut content = alloc::string::String::new();
++    for server in servers {
++        let _ = writeln!(&mut content, "nameserver {server}");
++    }
++    if content.is_empty() {
++        return;
++    }
++    // FS_CONTEXT.write() creates the file if it doesn't exist and replaces
++    // contents if it does. Failures (e.g. rootfs not yet mounted at this
++    // point) are silent — the callback is fire-and-forget.
++    let _ = FS_CONTEXT
++        .lock()
++        .write("/etc/resolv.conf", content.as_bytes());
++}
++
+ /// Initialize and run initproc.
+ pub fn init(args: &[String], envs: &[String]) {
+     static_keys::global_init();
+@@ -31,6 +49,9 @@ pub fn init(args: &[String], envs: &[String]) {
+     spawn_alarm_task();
+     pseudofs::usbfs::start_event_pump();
+ 
++    // Auto-update /etc/resolv.conf whenever DNS servers change (e.g. via DHCP).
++    ax_net::set_dns_change_callback(write_resolv_conf);
++
+     ax_alloc::register_page_reclaim_fn(ax_fs_ng::vfs::page_cache_reclaim);
+ 
+     let loc = FS_CONTEXT
