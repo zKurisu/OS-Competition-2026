@@ -66,3 +66,8 @@ git diff some-commit-hash-1 some-commit-hash-2 > change.patch
 > 时间: 2026-07-22  
 > 基于 tgoskits commit hash: 1bba09815  
 > 基于 patches: wifi, wext
+
+[fat_2026-07-23_1bba09815.patch](fat_2026-07-23_1bba09815.patch)
+
+> 时间: 2026-07-23
+> 基于 tgoskits commit hash: 1bba09815

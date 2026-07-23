@@ -1,0 +1,83 @@
+From 6770708521dbb597550ca8157cfa04f17abae582 Mon Sep 17 00:00:00 2001
+From: Orkarin <1043752169@qq.com>
+Date: Thu, 23 Jul 2026 10:32:51 +0800
+Subject: [PATCH] fix: fat partitioin can not mount to /boot
+
+---
+ os/StarryOS/kernel/Cargo.toml              | 2 ++
+ os/StarryOS/starryos/Cargo.toml            | 2 +-
+ os/arceos/modules/axfs-ng/src/fs/fat/fs.rs | 2 +-
+ os/arceos/modules/axfs-ng/src/root.rs      | 4 ++--
+ 4 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/os/StarryOS/kernel/Cargo.toml b/os/StarryOS/kernel/Cargo.toml
+index 4d34a4a8e..0ccf7356d 100644
+--- a/os/StarryOS/kernel/Cargo.toml
++++ b/os/StarryOS/kernel/Cargo.toml
+@@ -17,6 +17,7 @@ license.workspace = true
+ default = ["dynamic_debug"]
+ dev-log = []
+ ext4 = ["ax-fs-ng/ext4"]
++fat = ["ax-fs-ng/fat"]
+ input = ["dep:ax-input", "ax-runtime/input"]
+ ipi = ["ax-runtime/ipi"]
+ loongarch64-low-va = []
+@@ -40,6 +41,7 @@ sg2002 = [
+     "dep:some-serial",
+     "dep:sg200x-bsp",
+     "dep:tock-registers",
++    "fat",
+ ]
+ stack-guard-page = ["ax-runtime/stack-guard-page"]
+ stack-protector = ["ax-runtime/stack-protector"]
+diff --git a/os/StarryOS/starryos/Cargo.toml b/os/StarryOS/starryos/Cargo.toml
+index 23da1accf..5f1c03825 100644
+--- a/os/StarryOS/starryos/Cargo.toml
++++ b/os/StarryOS/starryos/Cargo.toml
+@@ -49,7 +49,7 @@ ax-driver.workspace = true
+ ax-hal.workspace = true
+ ax-runtime = { workspace = true, features = ["ext-ld", "irq"] }
+ axplat-dyn.workspace = true
+-starry-kernel = { workspace = true, features = ["dev-log", "ext4"] }
++starry-kernel = { workspace = true, features = ["dev-log", "ext4", "fat"] }
+ 
+ [target.'cfg(any(windows, all(unix, not(target_env = "musl"))))'.dependencies]
+ anyhow = "1.0"
+diff --git a/os/arceos/modules/axfs-ng/src/fs/fat/fs.rs b/os/arceos/modules/axfs-ng/src/fs/fat/fs.rs
+index 1669680a3..09579d18d 100644
+--- a/os/arceos/modules/axfs-ng/src/fs/fat/fs.rs
++++ b/os/arceos/modules/axfs-ng/src/fs/fat/fs.rs
+@@ -9,7 +9,7 @@ use slab::Slab;
+ use super::{dir::FatDirNode, disk::SeekableDisk, ff, util::into_vfs_err};
+ use crate::{
+     block::{BlockRegion, FsBlockDevice},
+-    os::sync::{IrqMutex as Mutex, IrqMutexGuard as MutexGuard},
++    os::sync::{SleepMutex as Mutex, SleepMutexGuard as MutexGuard},
+ };
+ 
+ pub struct FatFilesystemInner {
+diff --git a/os/arceos/modules/axfs-ng/src/root.rs b/os/arceos/modules/axfs-ng/src/root.rs
+index 398a2bd33..531863f11 100644
+--- a/os/arceos/modules/axfs-ng/src/root.rs
++++ b/os/arceos/modules/axfs-ng/src/root.rs
+@@ -511,7 +511,7 @@ fn mount_single_partition(
+     partition: &DetectedPartition,
+     kind: FilesystemKind,
+ ) {
+-    let mount_path = mount_path_for_partition(&partition.info);
++    let mount_path =mount_path_for_partition(&partition.info);
+     let description = describe_partition(disk.disk_index, partition);
+     match fs::new_from_handle_with_kind(disk.handle.clone(), partition.info.region, kind) {
+         Ok(fs) => {
+@@ -585,7 +585,7 @@ fn mount_path_for_partition(partition: &PartitionInfo) -> String {
+         .as_deref()
+         .filter(|name| !name.is_empty())
+         .unwrap_or("partition");
+-    if name.to_ascii_lowercase().contains("boot") {
++    if name.to_ascii_lowercase().contains("boot") || partition.bootable {
+         String::from("/boot")
+     } else {
+         format!("/{name}")
+-- 
+2.54.0
+
