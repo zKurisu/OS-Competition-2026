@@ -71,3 +71,13 @@ git diff some-commit-hash-1 some-commit-hash-2 > change.patch
 
 > 时间: 2026-07-23
 > 基于 tgoskits commit hash: 1bba09815
+
+[init-sh_2026-07-26_1bba09815.patch](init-sh_2026-07-26_1bba09815.patch)
+
+> 时间: `2026-07-26`  
+> 基于 tgoskits commit hash: `1bba09815`
+
+[ktracepoint-fix_2026-07-26_1bba09815.patch](ktracepoint-fix_2026-07-26_1bba09815.patch)
+
+> 时间: `2026-07-26`  
+> 基于 tgoskits commit hash: `1bba09815`

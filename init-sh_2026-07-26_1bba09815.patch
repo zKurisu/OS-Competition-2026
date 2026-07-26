@@ -1,0 +1,33 @@
+From 64c653fdb7072b42ae058719255f5b2f026c3c2b Mon Sep 17 00:00:00 2001
+From: pr0f1le <normaldisk@163.com>
+Date: Sun, 26 Jul 2026 17:36:56 +0800
+Subject: [PATCH] =?UTF-8?q?feat:=20=E4=BD=BF=E7=94=A8=20/root/init.sh=20?=
+ =?UTF-8?q?=E4=BD=9C=E4=B8=BA=E5=90=AF=E5=8A=A8=E8=84=9A=E6=9C=AC?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ os/StarryOS/starryos/src/init.sh | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/os/StarryOS/starryos/src/init.sh b/os/StarryOS/starryos/src/init.sh
+index ea5ad83f9..3070c0295 100644
+--- a/os/StarryOS/starryos/src/init.sh
++++ b/os/StarryOS/starryos/src/init.sh
+@@ -52,6 +52,12 @@ if [ -x /test_runner.sh ]; then
+     echo "[init] /test_runner.sh started pid=$!"
+ fi
+ 
++if [ -x /root/init.sh ]; then
++    echo "[init] /root/init.sh detected, running init script"
++    /bin/sh /root/init.sh
++    echo "[init] /root/init.sh finished"
++fi
++
+ cd "$HOME" || cd /
+ 
+ cat > /tmp/starry-shrc <<'EOF'
+-- 
+2.54.0
+
