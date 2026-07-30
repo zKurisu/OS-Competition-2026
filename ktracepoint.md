@@ -133,4 +133,5 @@ cat /sys/kernel/debug/tracing/trace
 #                              |||| /     delay
 #           TASK-PID     CPU#  |||||  TIMESTAMP  FUNCTION
 #              | |         |   |||||     |         |
+...
 ```

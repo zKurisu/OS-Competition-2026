@@ -1,5 +1,13 @@
 # strace 功能修复
 
+## 问题
+
+> root@starry:/root # strace ls  
+>  
+> ^Cstrace: Process 51 detached
+
+strace 没有输出，ls 的输出也没有
+
 ## 问题原因
 
 1. syscall/task/ptrace.rs
