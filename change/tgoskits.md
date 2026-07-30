@@ -47,7 +47,7 @@
 
 ## WiFi
 
-### 内核构建前
+### 旧内核
 
 #### `aic8800.rs`
 
@@ -90,6 +90,8 @@ wifi 接口为 `os/StarryOS/kernel/src/file/wext.rs`
 > [wifi_switch] wlan0 -> Station ssid="UESTC-WiFi" (open)  
 > ioctl 0x8b00 failed: No such device
 
+![](./img/old-wifi.png)
+
 #### DNS 自动写入 resolv.conf
 
 内核获取到来自路由的 DNS 后保存在内存里，其他用户态程序不知道，导致无法访问域名，只能访问ip
@@ -104,7 +106,7 @@ wifi 接口为 `os/StarryOS/kernel/src/file/wext.rs`
 
 代码修改见 [dns-patch](./patch/dns_2026-07-22_1bba09815.md)
 
-### 内核构建
+### 新内核
 
 在 `tgoskits` 仓库中选择 config `licheerv-nano-sg2002-wifi.toml`
 
@@ -114,7 +116,7 @@ cargo xtask starry build -c os/StarryOS/configs/board/licheerv-nano-sg2002-wifi.
 
 其中编译到 `aic8800` 时会卡住，因为缺少以为文件，需要从 github 下载，因此构建前需要打开代理
 
-### 用户态程序
+#### 用户态程序
 
 用户态程序在 `tgoskits` 仓库下的 `apps/starry/picoclaw-cli/wifi_switch.c`
 
@@ -126,14 +128,21 @@ cargo xtask starry build -c os/StarryOS/configs/board/licheerv-nano-sg2002-wifi.
 riscv64-linux-musl-gcc tgoskits/apps/starry/picoclaw-cli/wifi_switch.c -o wifi_switch
 ```
 
+#### 验证
+![](./img/cur-wifi.png)
+
 ## FAT 驱动
 
-FAT 无法挂载到 partition 目录，并且无法访问其中的内容
+一开始是没有启用 `fat` feature, 导致默认不会挂载, 但后续启用后会 FAT 还是无法挂载 boot 目录，并且无法访问其中的内容:
+
+![](./img/old-no-fat.png)
 
 原因是 FAT 驱动使用的锁是 `os::sync::{IrqMutex as Mutex, IrqMutexGuard as MutexGuard}` 关闭了中断
 
 1. 将锁换为 `os::sync::{SleepMutex as Mutex, SleepMutexGuard as MutexGuard}` 睡眠锁
 2. 判断分区是不是 bootable，是则挂载到 `/boot`
+
+![](./img/cur-fat.png)
 
 补丁 [fat](./patch/fat_2026-07-23_1bba09815.patch)
 
@@ -158,6 +167,8 @@ FAT 无法挂载到 partition 目录，并且无法访问其中的内容
 > ^Cstrace: Process 51 detached
 
 strace 没有输出，ls 的输出也没有
+
+![](./img/old-strace.png)
 
 ### 问题原因
 
@@ -214,6 +225,10 @@ tracer 注入相同信号（如 `PTRACE_SYSCALL(data=SIGSTOP)`）后，原代码
 ```
 符合 Linux 语义：exec-stop 应当替代（supersede）syscall exit stop，而非在其之后发生。
 
+此时有:
+
+![](./img/cur-strace.png)
+
 补丁 [strace-fix-patch](./patch/strace-fix_2026-07-24_1bba09815.md)
 
 ## dmesg
@@ -227,6 +242,8 @@ info!() → ax_log → LogIfImpl::console_write_str → ax_hal::console → UART
 
 dmesg   → sys_syslog syscall → SYSLOG_STATE (HeapRb ring buffer) /只有一条初始信息
 ```
+
+![](./img/old-dmesg.png)
 
 系统启动信息仅在开机时能看到，后续日志可能走其他串口设备输出，运行 shell 的串口没有混杂输出
 
@@ -286,6 +303,10 @@ fn might_sleep() {
 3. `entry.rs`
 
 注册 `log_writer` ，后续日志都会从 `log_writer` 再走一遍
+
+此时有:
+
+![](./img/cur-dmesg.png)
 
 补丁 [dmesg-patch](./patch/dmesg_2026-07-25_1bba09815.md)
 
@@ -352,6 +373,8 @@ trace_cvi_camera_ioctl()
 ```
 
 然后内核 panic
+
+![](./img/old-ftrace.png)
 
 因此将 tracepoint 中的 `raw_pipe` 和 `cmdline_cache` 改为 `SpinNoPreempt<T>`
 
@@ -432,5 +455,9 @@ cat /sys/kernel/debug/tracing/trace
 #           TASK-PID     CPU#  |||||  TIMESTAMP  FUNCTION
 #              | |         |   |||||     |         |
 ```
+
+此时有:
+
+![](./img/cur-ftrace.png)
 
 补丁 [ktracepoint_patch](./patch/ktracepoint-fix_2026-07-26_1bba09815.md)
