@@ -2,13 +2,12 @@
     path = code/tgoskits
     url = https://github.com/zKurisu/tgoskits.git
     branch = main_fix
-
 [submodule "LicheeRV-Nano-Build"]
     path = code/LicheeRV-Nano-Build
     url = https://github.com/pr0f1le/LicheeRV-Nano-Build.git
-[submodule "code/tgoskits"]
-	path = code/tgoskits
-	url = https://github.com/zKurisu/tgoskits.git
-[submodule "code/LicheeRV-Nano-Build"]
-	path = code/LicheeRV-Nano-Build
-	url = https://github.com/pr0f1le/LicheeRV-Nano-Build.git
+[submodule "akars"]
+    path = code/akars
+    url = https://github.com/zKurisu/akars.git
+[submodule "code/akars"]
+	path = code/akars
+	url = https://github.com/zKurisu/akars.git

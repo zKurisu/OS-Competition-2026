@@ -1,3 +1,0 @@
-[submodule "tpu-sdk-sg200x"]
-	path = toolchains/tpu-sdk-sg200x
-	url = https://github.com/milkv-duo/tpu-sdk-sg200x.git
