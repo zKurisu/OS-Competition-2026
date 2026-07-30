@@ -150,9 +150,13 @@ riscv64-linux-musl-gcc tgoskits/apps/starry/picoclaw-cli/wifi_switch.c -o wifi_s
 
 `cvi_usb_camera` 管理摄像头和 JPU 设备，但是有时 JPU 解码会出错，但是 camera 不会自动重启，因此摄像头会一直处于不可用状态
 
+![](./img/old-io-error.png)
+
 而摄像头出错实际上是因为 JPU 出错，JPU 驱动只在初始化时进行软件重置，导致帧缓冲区满，解码出错，从摄像头获取 YUV 图像帧则报告 EIO
 
-因此添加摄像头出错重置机制，并且对图像帧数量做计数，达到一定值后自动软件重置 JPU 以防止缓冲区满
+因此添加摄像头出错重置机制，并且对图像帧数量做计数，达到一定值后自动软件重置 JPU 以防止缓冲区满. 现在运行一段时间几乎不会出错:
+
+![](./img/cur-no-io-error.png)
 
 补丁1 [camera](./patch/camera_2026-07-23_1bba09815.patch)
 
