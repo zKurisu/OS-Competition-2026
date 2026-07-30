@@ -66,6 +66,15 @@ cd mxznjqrdaios
 git submodule update --init --recursive
 ```
 
+## 自动构建
+
+```sh
+# 自动下载构建工具并构建 StarryOS 和 U-Boot
+code/scritp/build.sh
+# 将构建结果安装到 /dev/sda1
+code/script/upload.sh /dev/sda1
+```
+
 ## 手动构建
 具体流程见 [doc/](doc/) 下的文档.
 
