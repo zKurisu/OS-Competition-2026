@@ -134,3 +134,7 @@ cat /sys/kernel/debug/tracing/trace
 #           TASK-PID     CPU#  |||||  TIMESTAMP  FUNCTION
 #              | |         |   |||||     |         |
 ```
+
+## 补丁
+
+[ktracepoint_patch](./patch/ktracepoint-fix_2026-07-26_1bba09815.md)

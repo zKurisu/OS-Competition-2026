@@ -57,4 +57,4 @@ tracer 注入相同信号（如 `PTRACE_SYSCALL(data=SIGSTOP)`）后，原代码
 
 ## 补丁
 
-见 [strace-fix-patch](../../tree/tgos-patches/strace-fix_2026-07-24_1bba09815.md)
+见 [strace-fix-patch](./patch/strace-fix_2026-07-24_1bba09815.md)

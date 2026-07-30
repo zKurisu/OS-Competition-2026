@@ -71,4 +71,4 @@ fn might_sleep() {
 
 ## 补丁
 
-见 [dmesg-patch](../../tree/tgos-patches/dmesg_2026-07-25_1bba09815.md)
+见 [dmesg-patch](./patch/dmesg_2026-07-25_1bba09815.md)

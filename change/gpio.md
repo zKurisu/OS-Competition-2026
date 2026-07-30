@@ -16,4 +16,4 @@
 - 添加 mod gpio（#[cfg(feature = "sg2002")]）
 - 在 builder() 的 #[cfg(feature = "sg2002")] 块中注册 /dev/gpio (设备号 1, 253)
 
-补丁见分支 [tgos-patches](../../tree/tgos-patches)
+补丁见分支 [tgos-patches](./patch/dev_mem_gpio_2026-07-17_1bba09815.md)
