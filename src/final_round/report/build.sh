@@ -32,7 +32,10 @@ TARGETS=(
   "report/main.typ|项目说明书.pdf"
   "statements/innovation.typ|项目创新说明.pdf"
   "statements/division.typ|成员分工及主要贡献说明.pdf"
-  "report/jqj.typ|第二部分-追球推理链路.pdf"
+  # 两份独立交付稿都是"薄装配"：正文片段在 report/sections/<line>/ 下，
+  # 与主报告逐章 include 的是同一份源文件，不再保留第二份正文副本。
+  "report/volumes/second-part-jqj.typ|第二部分-追球推理链路.pdf"
+  "report/volumes/kernel-opt.typ|内核优化分册.pdf"
 )
 
 built=0

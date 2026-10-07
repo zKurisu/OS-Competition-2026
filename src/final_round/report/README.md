@@ -82,3 +82,12 @@
    需要带「表 N」编号与题注时套一层 `#tablefigure(booktable(...), caption: [...])`；
    表格与图片各自独立编号（`main.typ` 里用 `show figure.where(kind: table)` 把表定为「表 N」）。
 5. **引用用著者-出版年制**：正文写 `（著者 年份）`，条目用 `#refitem[...]` 排在「参 考」。
+
+## 大文件拆分与接入约定
+
+固定一级章节仍由 `report/sections/01_ch1_intro.typ` 至 `06_ch6_summary.typ` 维护。篇幅较大的成员材料
+不直接扩充这些入口文件，而是在 `report/sections/<材料代号>/` 下按目标一级章节拆分；子文件沿用
+`02_ch2_tech.typ`、`03_ch3_project.typ`、`04_ch4_tests.typ`、`05_ch5_difficulties.typ`、
+`06_ch6_summary.typ` 的命名，并由对应一级章节使用 `#include` 接入。这样可以保留固定的大章结构，
+同时让后续材料以并列小节继续补充。`jqj.typ` 是首个按此规则拆分的文件，其内容位于
+`report/sections/jqj/`。
