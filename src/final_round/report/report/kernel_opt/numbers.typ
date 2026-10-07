@@ -108,12 +108,10 @@
 #let n-fault-around-64 = 70856
 #let n-fault-a3d-64 = 44120
 #let n-fault-a3d-64-best = 41717
-#let n-fault-ref-64 = 64427
 // 显式 MADV_HUGEPAGE 路径
 #let n-fault-huge-pre = 22216
 #let n-fault-huge-post = 8014
 #let n-fault-huge-lin = 5683
-#let n-fault-huge-ref = 64164
 // 分段（优化后，占位判断用）
 #let n-fa-pending-insert-pre = 719039
 #let n-fa-pending-insert-post = 18461
