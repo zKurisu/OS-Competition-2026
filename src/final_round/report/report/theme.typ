@@ -134,6 +134,13 @@
   show figure: set block(above: 0.8em, below: 1.0em)
   show figure: set figure(placement: top)
 
+  // —— 显示公式的上下跳距 ——
+  // 参考报告的 LaTeX 显示公式跳距是"橡皮长度"（\abovedisplayskip = 12pt ± 3pt ∓ 9pt），
+  // 页面紧张时会压缩到 3pt 左右；Typst 默认 1.2em 且不压缩。这里取 0.55em，
+  // 公式仍独立成行、编号与内容不变，只收掉公式前后的空白，避免短公式在页中撑出
+  // 2cm 以上的竖向空隙。公式内部与行内公式不受影响。
+  show math.equation.where(block: true): set block(above: 0.55em, below: 0.55em)
+
   // —— 等宽：行内沿用 \texttt 的做法（只换字族、不加底色）；块级仍用浅底便于阅读 ——
   // —— 交叉引用：@标签 渲染为"图 N / 表 N / N.N 节"，而不是标签名（对齐参考报告的 \ref）——
   show ref: it => {
