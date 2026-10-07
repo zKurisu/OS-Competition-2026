@@ -1,4 +1,5 @@
 // 本文件由 jqj.typ 拆分而来，仅承载实现难点章中的视觉链路内容。
+#import "../../lib.typ": booktable, tablefigure
 
 以下内容归纳视觉推理链路中的代表性实现难点。它不穷举项目全部难题，其他内核子系统的定位、修复与验收过程可在本章并列扩展。
 
@@ -8,7 +9,7 @@
 缩写、数据格式与关键概念
 
 #figure(
-  align(center)[#table(
+  align(center)[#table(stroke: none, inset: (x: 6pt, y: 4.5pt),
     columns: (10.81%, 35.14%, 54.05%),
     align: (auto,auto,auto,),
     table.header([缩写或术语], [全称], [本项目中的含义],),
@@ -37,7 +38,7 @@
     [zero-copy], [零拷贝], [大尺寸解码图像在设备间共享同一物理缓冲区；本项目并非所有数据完全无复制],
     [W1C], [Write One to Clear], [向状态位写入 1 才能清除的中断寄存器语义],
   )]
-  , kind: table
+  , kind: table, caption: [缩写、数据格式与关键概念]
   )
 
 === 优化前的处理链路与问题模型
@@ -212,7 +213,7 @@ done_to_user   = 内核完成收尾到运行时调用返回用户态
 早期TPU驱动采用异步worker架构。用户线程提交任务后先唤醒TPU worker，由worker配置硬件并等待完成中断；中断请求（Interrupt Request，IRQ）到达后再次唤醒worker，worker完成状态处理后再通知原始提交线程。一次串行任务因此包含两次额外的线程调度交接。
 
 #figure(
-  align(center)[#table(
+  align(center)[#table(stroke: none, inset: (x: 6pt, y: 4.5pt),
     columns: (18.18%, 36.36%, 45.45%),
     align: (auto,auto,auto,),
     table.header([阶段], [异步worker路径], [同步直通路径],),
@@ -224,7 +225,7 @@ done_to_user   = 内核完成收尾到运行时调用返回用户态
     [返回用户态], [worker再通知提交线程], [原提交线程直接返回],
     [额外调度交接], [至少两次], [无中间worker交接],
   )]
-  , kind: table
+  , kind: table, caption: [阶段与各列对照]
   )
 
 在多核系统中，worker可以与提交线程并行运行；但在单核C906上，每次任务交接都可能错过当前调度时间片。早期测试中，`submit_to_worker`约为20.899 ms，硬件执行区间约为20.302 ms，完成后返回用户态约为5.229 ms。虽然该阶段的硬件统计仍混合了输入TDMA与compute任务，但已经能够确认软件排队与硬件执行处于同一量级。
@@ -264,7 +265,7 @@ IRQ发布完成状态并唤醒提交线程
 静态A/B测试结果如下：
 
 #figure(
-  align(center)[#table(
+  align(center)[#table(stroke: none, inset: (x: 6pt, y: 4.5pt),
     columns: 4,
     align: (auto,auto,auto,auto,),
     table.header([性能指标], [worker路径], [同步直通路径], [优化效果],),
@@ -275,7 +276,7 @@ IRQ发布完成状态并唤醒提交线程
     [视觉总时延], [100.207 ms], [72.042 ms], [降低28.11%],
     [处理帧率], [9.96 FPS], [13.86 FPS], [提高39.16%],
   )]
-  , kind: table
+  , kind: table, caption: [静态A/B测试结果如下]
   )
 
 TPU时钟、模型结构和硬件命令流在两组测试中没有改变，因此性能提升来源于worker排队及线程交接的消除，与硬件频率增加无关。驱动仍保留`TPU_DIRECT_EXECUTION`开关和原异步worker实现，正式版本将其设置为`true`。保留旧路径便于进行A/B性能对照，也为未来多进程共享TPU或批量任务调度提供兼容回退，而不需要修改现有用户态应用二进制接口（Application Binary Interface，ABI）。
@@ -288,7 +289,7 @@ VPSS完成返回路径优化后，其平均时延由45 ms量级下降至1.6 ms�
 内核分段时间戳明确显示，问题不在TDMA硬件本身：
 
 #figure(
-  align(center)[#table(
+  align(center)[#table(stroke: none, inset: (x: 6pt, y: 4.5pt),
     columns: 3,
     align: (auto,auto,auto,),
     table.header([TDMA阶段], [优化前典型时间], [含义],),
@@ -297,7 +298,7 @@ VPSS完成返回路径优化后，其平均时延由45 ms量级下降至1.6 ms�
     [`irq_to_resume`], [44.283 ms], [中断后等待线程未及时恢复],
     [内核任务总时间], [45.253 ms], [主要由调度等待构成],
   )]
-  , kind: table
+  , kind: table, caption: [内核分段时间戳明确显示，问题不在TDMA硬件本身]
   )
 
 StarryOS常规`WaitQueue::notify_one()`按照普通策略将等待任务加入就绪队列。在时间片轮转（Round-Robin，RR）调度下，刚被中断唤醒的TPU提交线程可能被放置在运行队列尾部，需要等待其他任务用完时间片。对于硬件执行时间不足1 ms的TDMA任务，几十毫秒的恢复等待会完全掩盖硬件性能。
@@ -312,7 +313,7 @@ StarryOS常规`WaitQueue::notify_one()`按照普通策略将等待任务加入�
 优化前后的典型时间对比如下：
 
 #figure(
-  align(center)[#table(
+  align(center)[#table(stroke: none, inset: (x: 6pt, y: 4.5pt),
     columns: (23.81%, 14.29%, 23.81%, 38.1%),
     align: (auto,auto,auto,auto,),
     table.header([TDMA阶段], [优化前], [优化后], [结果],),
@@ -322,7 +323,7 @@ StarryOS常规`WaitQueue::notify_one()`按照普通策略将等待任务加入�
     [内核任务总时间], [45.253 ms], [0.978 ms], [恢复到真实硬件量级],
     [用户态正式测试], [45.589 ms], [1.114～1.116 ms], [包含运行时及系统调用开销],
   )]
-  , kind: table
+  , kind: table, caption: [优化前后的典型时间对比如下]
   )
 
 “消除TDMA时延”具体指消除多余的调度等待，统计项和数据搬运均被保留。输入数据仍需通过TDMA导入模型要求的存储布局，0.8～1.1 ms的真实硬件时间依然存在；被消除的是IRQ到达后44 ms量级的不必要调度等待。强制队首唤醒只用于`tdma_only`短任务。此类任务的硬件时间不足1 ms，对一个完整调度时间片极为敏感；compute任务本身需要39 ms量级，如果所有TPU完成中断都无条件插入队首，可能破坏系统调度公平性。当前驱动通过`ACTIVE_TDMA_ONLY`识别短输入任务，对其采用强制前插，而长时间compute任务保留较保守的普通唤醒策略。
@@ -335,7 +336,7 @@ TPU性能不仅取决于模型和标称频率，还受到时钟门控、时钟�
 SoC初始化按照官方顺序配置TPU与FAB时钟门控，并管理TDMA、TPU和TPUSYS复位信号。相关复位采用低有效语义：驱动先清除控制位以断言复位，再置位解除复位，避免在下级模块仍处于活动状态时直接复位上层系统。共享时钟寄存器采用带中断保护的自旋锁执行读---改---写操作，防止不同执行路径并发修改寄存器时覆盖其他位。驱动通过读取TPLL、FPLL、MIPIMPLL和A0PLL等锁相环（Phase-Locked Loop，PLL）状态，结合时钟多路选择器、旁路状态和从1开始计数的分频系数，计算TPU与FAB的实际工作频率。当前实机结果如下：
 
 #figure(
-  align(center)[#table(
+  align(center)[#table(stroke: none, inset: (x: 6pt, y: 4.5pt),
     columns: 2,
     align: (auto,auto,),
     table.header([时钟或状态], [实测值],),
@@ -348,7 +349,7 @@ SoC初始化按照官方顺序配置TPU与FAB时钟门控，并管理TDMA、TPU�
     [TPU分频寄存器], [`0x00020009`],
     [是否重新应用性能分频], [`false`],
   )]
-  , kind: table
+  , kind: table, caption: [时钟或状态与各列对照]
   )
 
 `perf_div_applied=false`表明启动固件已经将共享TPLL和TPU分频配置到目标状态，驱动识别到现有配置正确后没有重复改写。共享PLL和电压域可能同时服务其他外设，因此不能仅为提高TPU频率而擅自修改，否则可能破坏其他设备的稳定性。
@@ -356,7 +357,7 @@ SoC初始化按照官方顺序配置TPU与FAB时钟门控，并管理TDMA、TPU�
 TPU任务按照`prepare → run → finish`三个阶段管理：
 
 #figure(
-  align(center)[#table(
+  align(center)[#table(stroke: none, inset: (x: 6pt, y: 4.5pt),
     columns: (18.18%, 81.82%),
     align: (auto,auto,),
     table.header([生命周期阶段], [主要职责],),
@@ -365,7 +366,7 @@ TPU任务按照`prepare → run → finish`三个阶段管理：
     [`run`], [写入描述符地址，配置动态时钟管理和中断，最终触发命令流],
     [`finish`], [保存完成及错误状态，清理中断并完成设备收尾],
   )]
-  , kind: table
+  , kind: table, caption: [TPU任务按照`prepare → run → finish`三个阶段管理]
   )
 
 驱动将解析得到的实际`tpu_clk_rate`传递给执行层，用于等待和超时计算，避免继续使用未经硬件验证的固定频率常量。发生超时或错误后，设备也可以依据同一生命周期重新清理状态并恢复运行。
@@ -375,7 +376,7 @@ TPU任务按照`prepare → run → finish`三个阶段管理：
 当前正式模型的compute任务平均`fire_to_irq`约为39.361 ms，Linux基线中同一模型的TPU推理约为39.721 ms，两者处于相同量级：
 
 #figure(
-  align(center)[#table(
+  align(center)[#table(stroke: none, inset: (x: 6pt, y: 4.5pt),
     columns: 3,
     align: (auto,auto,auto,),
     table.header([指标], [StarryOS], [Linux基线],),
@@ -384,7 +385,7 @@ TPU任务按照`prepare → run → finish`三个阶段管理：
     [核心硬件执行时间], [39.361 ms], [39.721 ms],
     [差值], [-], [0.360 ms],
   )]
-  , kind: table
+  , kind: table, caption: [指标与各列对照]
   )
 
 该结果说明StarryOS不存在明显的TPU降频问题，TPU硬件算力已经与Linux基线基本一致。用户态最终观察到的1～2 ms差异更可能来自中断恢复、运行时封装、系统调用边界和测试波动，时钟频率配置错误已被实机数据排除。
@@ -401,7 +402,7 @@ TPU任务按照`prepare → run → finish`三个阶段管理：
 正式模型的输出形状为`[1,5,8400,1]`，即5个通道和8,400个候选位置。各通道含义如下：
 
 #figure(
-  align(center)[#table(
+  align(center)[#table(stroke: none, inset: (x: 6pt, y: 4.5pt),
     columns: 2,
     align: (auto,auto,),
     table.header([通道], [数据含义],),
@@ -412,7 +413,7 @@ TPU任务按照`prepare → run → finish`三个阶段管理：
     [3], [检测框高度`h`],
     [4], [网球类别置信度],
   )]
-  , kind: table
+  , kind: table, caption: [正式模型的输出形状为`[1,5,8400,1]`，即5个通道和8,400个候选位置。各通道含义如下]
   )
 
 `parse_yolov8_output()`按照通道跨度访问数据，而不是把输出错误地解释为8,400组连续五元组。多类别兼容路径会在类别通道中寻找最大分数及类别编号；对于当前单类别模型，该过程简化为一次连续的置信度扫描。
@@ -435,7 +436,7 @@ IoU   = intersection / union
 模型使用640×640输入，而摄像头原始图像为640×480，因此检测框还需要执行letterbox坐标逆映射。当前几何关系为：
 
 #figure(
-  align(center)[#table(
+  align(center)[#table(stroke: none, inset: (x: 6pt, y: 4.5pt),
     columns: 2,
     align: (auto,auto,),
     table.header([参数], [数值],),
@@ -446,7 +447,7 @@ IoU   = intersection / union
     [水平填充`pad_x`], [0],
     [垂直填充`pad_y`], [80],
   )]
-  , kind: table
+  , kind: table, caption: [参数与各列对照]
   )
 
 `correct_yolo_boxes()`从模型坐标中减去填充偏移，再除以缩放比例，将预测框恢复到摄像头坐标系，最后裁剪到`[0,639]×[0,479]`范围。如果省略该步骤，检测框的垂直坐标将产生80像素偏差，进一步影响网球中心位置、面积比例、转向决策和抓取条件判断。
@@ -454,7 +455,7 @@ IoU   = intersection / union
 优化前后的主要变化如下：
 
 #figure(
-  align(center)[#table(
+  align(center)[#table(stroke: none, inset: (x: 6pt, y: 4.5pt),
     columns: 3,
     align: (auto,auto,auto,),
     table.header([优化项目], [原始方式], [当前方式],),
@@ -465,7 +466,7 @@ IoU   = intersection / union
     [调试输出], [可能逐帧打印], [默认关闭详细日志],
     [平均后处理时间], [14 ms], [1.6 ms],
   )]
-  , kind: table
+  , kind: table, caption: [优化前后的主要变化如下]
   )
 
 最新测试中，StarryOS后处理平均为1.632 ms，Linux基线为0.449 ms。两端使用相同的Rust解析、阈值筛选、NMS和坐标恢复逻辑，因此差异更可能来自张量映射缓存属性、CPU调度、编译环境、候选数量及缓存冷热状态。
