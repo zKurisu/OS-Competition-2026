@@ -2,7 +2,7 @@
 #import "../_prelude.typ": *
 #import "numbers.typ": *
 
-== 内核优化总结
+== 内核优化总结 <sec:kernel-sum>
 
 内核这条线只做一件事：把"每次都要付的固定成本"降下来。做完之后，它与厂商 Linux 的
 相对位置可以概括为四条。
@@ -20,13 +20,13 @@
 #k-seqwrite-pre MiB/s 提到 #k-seqwrite-post MiB/s（Linux #k-seqwrite-lin MiB/s），
 8 MiB 写 + `fsync` 从 #k-fsync-pre ms 降到 #k-fsync-post ms（Linux #k-fsync-lin ms），
 冷启动到可交互 shell 为 #k-boot-shell-post s（Linux 约 #k-boot-total-lin s）。这些指标
-说明这块板上的差距从来不是"算力不够"，而是"每次操作多付了一笔"。
+据此判定，差距来自每次操作的固定成本，而同类带宽指标两侧接近。
 
 第四，*剩下的差距集中在两处，且都已被精确定位但没有动*。一是上下文切换
 （#k-ctx-post µs 对 #k-ctx-lin µs），根因是调度热路径上十几处 1–15 µs 的固定开销叠加；
 二是文件读的每页固定成本（fresh 仍差 #k-read-fresh-post 对 #k-read-fresh-lin MB/s），
 根因是每页一次的映射槽与反向映射发布、以及页对象建立。两者都需要改动核心不变式，
-因此本轮只做完归因、把方案与前置条件写进"内核优化中的定位方法与难点"一节，而不是在收尾阶段动它们。
+因此本轮只做完归因、把方案与前置条件写进 @sec:kernel-hard，而不是在收尾阶段动它们。
 
 方法上的收获与数字同样重要。这一阶段没有一次收益来自"按经验调优"：指令缓存刷新、页索引
 的 O(n²)、`close` 里的同步元数据提交，都是先被分段数据指出来的；而被否掉的六个假设

@@ -19,20 +19,18 @@ STYLE_PY="$(grep -A2 '^STYLE_DIR = Path(' "$FIGSTYLE" 2>/dev/null \
 [ -f "$STYLE_PY" ] || STYLE_PY="/home/jie/Do/1_2026开源操作系统大赛/project3136859-388489/docs/final-round/style/style.py"
 
 # 1) 禁用串（正文与数据表）
-#    report/jqj.typ 是从别人的 Markdown 转来的草稿（下一步才并入正文），里面的措辞和
-#    "约为 44～47 ms"这类数字还没按本报告的纪律改写，所以下面四条措辞检查先跳过它。
-#    并入正文章节时，要把它的数字换成 data/numbers.typ 的宏、句式也按纪律改写。
-DRAFT=(--exclude=jqj.typ)
-if grep -rInE '[0-9]{1,3}(\.[0-9]{1,3}){3}' "${DRAFT[@]}" "$HERE/report" "$HERE/data" 2>/dev/null; then
+#    四条工作线均已并入 report/sections/ 并由 main.typ 逐章 include，
+#    正文只有一份来源，因此检查覆盖 report/ 全量，不再豁免任何草稿文件。
+if grep -rInE '[0-9]{1,3}(\.[0-9]{1,3}){3}' "$HERE/report" "$HERE/data" 2>/dev/null; then
   red "正文里出现裸 IP（应写成 板子/宿主 或占位名）"
 fi
-if grep -rInE 'sudo |AGENT_HANDOFF|交接文档' "${DRAFT[@]}" "$HERE/report" "$HERE/data" 2>/dev/null; then
+if grep -rInE 'sudo |AGENT_HANDOFF|交接文档' "$HERE/report" "$HERE/data" 2>/dev/null; then
   red "出现内部串（sudo / 交接文档）"
 fi
-if grep -rInE '不是[^。]{1,40}而是|并非[^。]{1,40}而是|与其[^。]{1,40}不如' "${DRAFT[@]}" "$HERE/report" 2>/dev/null; then
+if grep -rInE '不是[^。]{1,40}而是|并非[^。]{1,40}而是|与其[^。]{1,40}不如' "$HERE/report" 2>/dev/null; then
   red "not-A-but-B 对比句式（改为直接陈述）"
 fi
-if grep -rInE '约[0-9]|大概[0-9]' "${DRAFT[@]}" "$HERE/report" "$HERE/data" 2>/dev/null; then
+if grep -rInE '约[0-9]|大概[0-9]' "$HERE/report" "$HERE/data" 2>/dev/null; then
   red "含糊数值（要么给确切数字，要么用 #abl[...] 标出）"
 fi
 

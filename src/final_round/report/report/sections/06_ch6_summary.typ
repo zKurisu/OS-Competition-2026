@@ -10,6 +10,10 @@
 
 #include "jqj/06_ch6_summary.typ"
 
+应用层的结论止于端到端延迟；系统层三条线的结论各不相同，因此分别小结：内核部分回答
+固定成本收窄到何处，小核部分回答实时性与兜底是否可承诺，板级 I/O 部分回答结论本身
+能否被反复验证。
+
 #include "kernel_opt/06_ch6_summary.typ"
 
 #include "c906l/06_ch6_summary.typ"
