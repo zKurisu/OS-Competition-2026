@@ -1,13 +1,12 @@
 [submodule "tgoskits"]
-    path = code/tgoskits
+    path = src/final_round/tgoskits
     url = https://github.com/zKurisu/tgoskits.git
-    branch = main_fix
+    branch = port/main-sg2002-fixes-cmdqu-merge
 [submodule "LicheeRV-Nano-Build"]
-    path = code/LicheeRV-Nano-Build
-    url = https://github.com/pr0f1le/LicheeRV-Nano-Build.git
+    path = src/final_round/LicheeRV-Nano-Build
+    url = https://github.com/zKurisu/LicheeRV-Nano-Build.git
+    branch = feat/sg2002-c906l-firmware
 [submodule "akars"]
-    path = code/akars
+    path = src/final_round/akars
     url = https://github.com/zKurisu/akars.git
-[submodule "code/akars"]
-	path = code/akars
-	url = https://github.com/zKurisu/akars.git
+    branch = akars-slow-grab-approach

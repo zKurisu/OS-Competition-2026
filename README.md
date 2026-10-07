@@ -33,13 +33,13 @@
 
 ## 基线版本
 
-本工作的实现依托多个开源项目，其依赖关系在初次提交时已逐一注明。内核取自 rcore-os/tgoskits 的 main 分支；机器人程序从 chenlongos/akars 移植而来，并按 tgoskits 的应用形态改造；U-Boot 与 FreeRTOS 来自 sipeed/LicheeRV-Nano-Build，逐项出处见 [src/final_round/docs/THIRD_PARTY.md](src/final_round/docs/THIRD_PARTY.md)。
+本工作的实现依托多个开源项目，其依赖关系在初次提交时已逐一注明。内核取自 rcore-os/tgoskits 的 main 分支；机器人程序从 chenlongos/akars 移植而来，并按 tgoskits 的应用形态改造；U-Boot 与 FreeRTOS 来自 sipeed/LicheeRV-Nano-Build。
 
 | 基础版本 | 仓库 | 基线 |
 |---|---|---|
 | 操作系统内核 | rcore-os/tgoskits @ `main` | commit `67beb17`（2026-09-14，“Merge pull request #2402 from rcore-os/dev”）|
-| 机器人应用 | chenlongos/akars | 见 [`src/final_round/docs/THIRD_PARTY.md`](src/final_round/docs/THIRD_PARTY.md) |
-| U-Boot和FreeRTOS | sipeed/LicheeRV-Nano-Build | 见 [`src/final_round/docs/THIRD_PARTY.md`](src/final_round/docs/THIRD_PARTY.md) |
+| 机器人应用 | chenlongos/akars @ `main` | commit `4d97c38` (2026-07-28, “perf: reduce vision preprocessing overhead”) |
+| U-Boot和FreeRTOS | sipeed/LicheeRV-Nano-Build @ `main` | commit `d4003f1` (2026-01-14, “fix reboot adbd issue”)  |
 
 ## 完成情况
 
@@ -47,10 +47,10 @@
 
 | 阶段 | 状态 | 说明 |
 |---|---|---|
-| 一　上板启动、打通 TPU 推理 | ✅ | xxx |
-| 二　补齐本体外设、实现实际拾球 | ✅ | xxx |
-| 三　对照 Linux 基线做性能优化 | ✅ | xxx |
-| 　　启动速度、内存占用与整机功耗的对照 | 进行中 | xxx |
+| 一　上板启动、打通 TPU 推理 | ✅ | 块设备写上限对齐 Linux（2→8 MiB）后系统稳定挂载；补齐 TPU 时钟、复位与任务生命周期，官方 CVITEK 运行时跑通，推理 41.3 对 Linux 39.7 ms |
+| 二　补齐本体外设、实现实际拾球 | ✅ | UVC 相机经 DWC2 主机栈取流，底盘与机械臂两路串口接通，六状态拾球闭环在多球任务中跑通 |
+| 三　对照 Linux 基线做性能优化 | ✅ | 视觉端到端 53.0 ms 对 Linux 54.2 ms；部分系统调用入口 25.0× 收窄至 3.9×，缺页每页成本 165× 收窄至 5.6× |
+| 　　启动速度、内存占用与整机功耗的对照 | 进行中 | 内核段启动仍慢，模型加载与峰值内存偏高；整机功耗待采集 |
 
 ## 关键结果
 两侧均部署在 SG2002 平台，采用相同的 640×640 网球检测模型、置信度阈值及处理流程。StarryOS 的单帧视觉总时延为 53.024 ms，Linux 基线为 54.230 ms，StarryOS 减少 1.206 ms，整体快约 2.22%；两侧平均置信度分别为 93.13% 和 93.62%，检测结果基本一致。
@@ -73,17 +73,21 @@ StarryOS 的主要优势集中在图像前端：JPU（解码仅需1.645 ms，使
 经过任务同步直通、worker排队消除、IRQ（Interrupt Request，中断请求）优先唤醒、TDMA等待竞态修复以及时钟与复位生命周期补全后，StarryOS的TPU内核驱动性能已基本比肩Linux。其输入TDMA搬运仅比Linux多0.143 ms，TPU推理仅多1.588 ms，两者已经处于同一性能量级，证明StarryOS此前由任务交接和中断后调度造成的数十毫秒软件开销已基本消除。当前差距主要来自运行时返回、DMA映射和缓存策略等细节，而非TPU硬件执行能力或内核调度架构的数量级差异。尽管CPU后处理仍多消耗1.183 ms，StarryOS凭借图像前端约4.173 ms的优势，最终将整条视觉链路的单帧时延降低至53.024 ms，比Linux基线低1.206 ms，表明优化后的StarryOS不仅实现了TPU驱动性能追平，也在端到端视觉处理性能上略微超过Linux。后端约2.968 ms的劣势，使整条视觉链路在本轮测试中追平并略微超过Linux基线。
 
 内核侧收益:
+
 | 指标 | StarryOS 优化前 | StarryOS 优化后 | Linux 基线 |
 |---|---:|---:|---:|
-| xxx | xxx | xxx | xxx |
+| `getpid`（空系统调用） | 10 560 ns | 1 631 ns | 422.5 ns |
+| 未知系统调用（去掉热路径日志后即入口地板） | 256.9 µs | 8.5 µs | 0.32 µs |
+| 管道往返 `pipe_wr`（4 KiB） | 46 819 ns | 12 576 ns | 4 489 ns |
+| `fork`+`execve`+`waitpid` | 43 537 µs | 22 359 µs | 2 407 µs |
+| └ 其中 `execve` 内核侧 | 32.3 ms | 4.5 ms | — |
+| 子地址空间退休 | 3 570 µs | 410 µs | — |
+| ext4 `open`+`read`(1 KiB)+`close` | 10 320 µs | 454 µs | 42 µs |
+| 8 MiB 顺序写 + `fsync` | 7 961 ms | 931 ms | 790 ms |
+| 8 MiB 页缓存顺序写 | 2.41 MiB/s | 42.43 MiB/s | 34 MiB/s |
+| 64 MiB 匿名首触（默认 4 KiB，每页） | 1 302 123 ns | 44 120 ns | 7 899 ns |
+| 64 MiB 首触（显式大页，每页） | 22 216 ns | 8 014 ns | 5 683 ns |
 
-## 增量贡献
-
-本队在上述基础上的增量贡献见下表，还未提交至上游仓库 rcore-os/tgoskits，而是提交到了 fork 的仓库 zKurisu/tgoskits。
-
-| 贡献 | 位置 | fork 仓库提交 |
-|---|---|---|
-| xxx | xxx | xxx |
 
 ## 后续工作
 系统层面仍有几处可以推进。当前TPU计算占单帧视觉时延的77.9%，其中97%以上为真实硬件命令流，后续性能提升将主要依赖模型结构、编译器算子融合和片上内存规划，而非继续压缩已经接近硬件能力的VPSS阶段。TPU输出张量目前采用非缓存映射，CPU后处理仍比Linux多约1.183 ms，下一步将尝试可缓存映射与显式缓存失效相结合的所有权切换机制。摄像头与JPU之间尚存在一次几十KB的JPEG码流复制，也可通过不可变帧对象或物理位流环形缓冲进一步消除。在此基础上，系统还可配置双组ION缓冲区，使第 \(N\) 帧进行TPU推理时，第 \(N+1\) 帧同步完成JPU解码和VPSS预处理，形成跨帧硬件流水线；该方案将以闭环响应时间和图像帧龄为约束，避免单纯提高吞吐率却引入DDR争用和历史帧积压。
@@ -101,10 +105,14 @@ StarryOS 的主要优势集中在图像前端：JPU（解码仅需1.645 ms，使
 - 引入决策模型, 让模型控制 action 而非状态机编码。
 
 内核层面:
-- xxx
+- 陷阱入口/出口是当前最大的单点：`invalid_syscall` 8.5 µs 的"地板"里约 90% 与具体系统调用无关，需从陷阱向量、上下文保存与返回用户态的实现入手。
+- 单页缺页仍有固定开销：顺序预取已把每页成本压到 44 µs，但跨步/随机首触仍差一个数量级。
+- 缓存命中读路径尚未做完（warm 差 1.5×、fresh 差 5.4×、单次大读差 3.8×），瓶颈在每页两次拷贝与每次 `read` 的固定开销。
+- 调度与 IPC 面仍约为 Linux 的 20 倍（`fork+exec+wait`、上下文切换、管道往返），需要架构感知的线程放置与更轻的任务交接路径。
 
 ## 其它文档
 `src/first_round/docs/` 目录下的说明文档如下:
+
 | 类别 | 文件 |
 |---|---|
 | SG2002上手手册 | [`src/first_round/docs/0_sg2002_start.md`](src/first_round/docs/0_sg2002_start.md) |
@@ -114,14 +122,54 @@ StarryOS 的主要优势集中在图像前端：JPU（解码仅需1.645 ms，使
 | 裸机驱动简单教程 | [`src/first_round/docs/4_bare_driver_start.md`](src/first_round/docs/4_bare_driver_start.md) |
 | StarryOS驱动编写流程 | [`src/first_round/docs/5_starry_driver_start.md`](src/first_round/docs/5_starry_driver_start.md) |
 
-`src/final_round/docs/` 目录下的说明文档如下:
-
-| 类别 | 文件 |
-|---|---|
-| xxx | xxx |
-
 ## 构建与运行
-xxx
+当前项目的增量贡献均提交到对应 fork 仓库, 所用子模块包括:
+
+| 仓库 | 分支 |
+|---|---|
+| zKurisu/tgoskits | port/main-sg2002-fixes-cmdqu-merge |
+| zKurisu/LicheeRV-Nano-Build | feat/sg2002-c906l-firmware |
+| zKurisu/akars | akars-slow-grab-approach |
+
+### 拉取子模块
+
+```bash
+git submodule update --init --recursive
+# 等价的手工方式（.gitmodules 记录的 URL 与分支相同）：
+git clone -b port/main-sg2002-fixes-cmdqu-merge https://github.com/zKurisu/tgoskits.git src/final_round/tgoskits
+git clone -b feat/sg2002-c906l-firmware https://github.com/zKurisu/LicheeRV-Nano-Build.git src/final_round/LicheeRV-Nano-Build
+git clone -b akars-slow-grab-approach https://github.com/zKurisu/akars.git src/final_round/akars
+```
+
+### 编译
+
+```bash
+# 内核（StarryOS）→ target/riscv64gc-unknown-none-elf/release/starryos.uimg
+cd src/final_round/tgoskits
+cargo xtask starry build -c os/StarryOS/configs/board/aka-00-sg2002.toml
+
+# 机器人应用（akars）→ target/riscv64gc-unknown-linux-musl/release/akars
+cd ../akars && scripts/build.sh
+```
+
+### 上板
+
+```bash
+# 板子停在 U-Boot：进入 USB 大容量存储模式（板端 `ums 0 mmc 0`），
+# 把启动产物写进启动区（FAT 分区 1），应用与依赖写进根文件系统（ext4 分区 2）的 /root
+mcopy -i /dev/sdX1 -o starryos.uimg ::/boot.sd
+#   /root 下需要：akars、model/yolov8n_tennis_v2.cvimodel、lib/*.so（CVITEK 运行时）
+
+# 复位后在 U-Boot 里加载；直接断电重启亦可，bootcmd 会自行读取 boot.sd
+fatload mmc 0 0x81800000 boot.sd; bootm 0x81800000#config-sg2002_licheervnano_sd
+```
+
+### 运行
+
+```bash
+cd /root && LD_LIBRARY_PATH=/root/lib ./akars model/yolov8n_tennis_v2.cvimodel \
+    --camera /dev/cvi-usb-camera0 --vpss /dev/cvi-vpss0 --motor /dev/ttyS1 --arm /dev/ttyS2
+```
 
 ## 开源协议
 
