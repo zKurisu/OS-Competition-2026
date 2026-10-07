@@ -13,13 +13,13 @@
 
 赛题「面向智能机器人的 AIOS」要求把开源机器人的操作系统内核从 C 语言实现的 Linux 整体迁移到
 以 Rust 编写的组件化内核，在内核之上补齐系统调用、文件接口与 NPU/USB/UART/摄像头等关键外设驱动，
-打通 NPU 推理链路，并在端到端延迟、启动速度、推理帧数与资源、能耗比等维度超过同机 Linux 基线。
+打通 NPU 推理链路（赛题原文表述为 NPU，本平台对应的硬件为 TPU），并在端到端延迟、启动速度、推理帧数与资源、能耗比等维度超过厂商 Linux 基线。
 赛程分三步走：先在开发板上把内核启动起来并完成模型加载，再补齐 USB 感知与串口电机驱动、完成
 网球的拾取，最后与 Linux 基线逐项对标做性能优化。本项目落在第三步，交付的是一份可复现的对标
 结论，以及为得到它而做的内核改动。
 
 硬件载体是辰龙 AKA-00 教育机器人，主控为 SG2002：应用核是 RISC-V C906 @ #soc-bigcore-ghz GHz
-（与 ARM Cortex-A53 二者取一，由管脚选择），另有 C906 @ #soc-smallcore-mhz MHz 协处理器，
+（与 ARM Cortex-A53 二者取一，由管脚选择），另有 C906 @ #soc-smallcore-mhz MHz 小核（协处理器，下称 C906L），
 片上 TPU 的 INT8 算力为 #soc-tpu-tops-int8 TOPS，板载 DDR #soc-ddr-mib MiB。机器人程序是
 `akars`，由同名的 C 语言版本移植为 Rust 二进制，链路为 USB 摄像头取流、MJPEG 解码与 letterbox、
 YOLOv8 的 CVI 运行时推理、串口底盘与串口机械臂，六个状态构成拾球闭环。它运行在 musl 根文件
