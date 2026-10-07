@@ -130,7 +130,9 @@
     } else { none }
     if lbl == none { it.body } else { lbl + [ ] + it.body }
   }))
+  // 浮动到页顶：图/表放不下时随文本一起流动到下一页页首，避免整块被推走后留下大片空白
   show figure: set block(above: 0.8em, below: 1.0em)
+  show figure: set figure(placement: top)
 
   // —— 等宽：行内沿用 \texttt 的做法（只换字族、不加底色）；块级仍用浅底便于阅读 ——
   // —— 交叉引用：@标签 渲染为"图 N / 表 N / N.N 节"，而不是标签名（对齐参考报告的 \ref）——
@@ -153,8 +155,9 @@
   }
 
   show raw.where(block: false): it => text(font: mono, size: 0.95em, it)
+  // breakable: true —— 长代码块允许跨页续排，避免整块被推到下一页而留下大片空白
   show raw.where(block: true): it => block(
-    width: 100%, inset: (x: 9pt, y: 7pt), radius: 3pt,
+    width: 100%, inset: (x: 9pt, y: 7pt), radius: 3pt, breakable: true,
     fill: rgb("#f7f9fb"), stroke: 0.5pt + rule,
     text(font: mono, size: 8.6pt, it),
   )
