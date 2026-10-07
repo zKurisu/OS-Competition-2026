@@ -1,4 +1,5 @@
 // 本文件由 jqj.typ 拆分而来，仅承载实验测试章中的视觉链路对比。
+#import "../../lib.typ": booktable, tablefigure
 
 以下测试用于验证视觉推理工作线的阶段时延与系统级收益。系统调用、内存、存储、网络等实验结果由本章其他小节按统一测试原则继续补充。
 
@@ -78,25 +79,35 @@ t0：开始处理一帧
   └─ t11：本帧视觉处理结束
 ```
 
-#figure(
-  align(center)[#table(
-    columns: (8.37%, 23.9%, 23.9%, 19.92%, 23.9%),
-    align: (auto,auto,auto,auto,auto,),
-    table.header([指标], [指标含义], [计算方式], [计时范围], [探针位置],),
-    table.hline(),
-    [摄像头等待], [视觉线程请求下一幅可用图像后，等待压缩帧就绪并取得该帧的时间], [$T_(upright(c a m e r a)) =\(t_2 - t_1\)-\(k_2 - k_1\)$], [等待新帧、取得最新帧及摄像头接口附加开销], [用户态在`t1、t2`记录摄像头/JPU ioctl墙钟，内核在`k1、k2`记录JPU解码时间，两者相减得到摄像头等待残差],
-    [JPU解码], [将MJPEG压缩帧提交给JPEG处理单元并取得YUV422P解码结果的时间], [$T_(upright(J P U)) = k_2 - k_1$], [JPU提交、硬件解码、完成等待及状态检查], [StarryOS内核`decode_jpeg_into_ion()`中，`k1`位于`decode_planar_into()`调用前，`k2`位于解码完成及输出状态检查后],
-    [VPSS], [完成YUV422P到RGB的颜色空间转换、缩放、letterbox填充及RGB planar排布的时间], [$T_(upright(V P S S)) = t_4 - t_3$；其中 $T_(upright(s u b m i t)) = v_2 - v_1$，$T_(upright(h a r d w a r e)) = v_3 - v_2$，$T_(upright(r e t u r n)) =\(t_4 - t_3\)-\(v_3 - v_1\)$], [请求校验与硬件启动、硬件处理、中断唤醒及ioctl返回], [用户态在`t3、t4`记录ioctl墙钟；内核在`v1`记录请求入口、`v2`记录硬件启动、`v3`记录完成IRQ],
-    [摄像头/JPU等待 + VPSS], [从请求一帧图像到获得可输入TPU的RGB planar图像为止的前端视觉时延], [$T_(upright(f r o n t)) =\(t_2 - t_1\)+\(t_4 - t_3\)$], [从请求图像到获得模型输入图像], [由摄像头/JPU ioctl墙钟与VPSS ioctl墙钟相加，无独立硬件探针],
-    [TPU输入TDMA搬运], [在模型正式计算前，将VPSS输出准备到TPU输入张量所需位置的时间], [$T_(upright(T D M A)) = t_6 - t_5$], [将VPSS输出导入TPU输入张量], [`t5`位于`CVI_NN_SetTensorWithAlignedFrames()`调用前，`t6`位于该调用返回后],
-    [TPU推理], [从提交模型命令流到前向推理完成并返回的时间], [$T_(upright(f o r w a r d)) = t_8 - t_7$], [命令提交、模型计算、内部访存、中断等待及运行时返回], [`t7`位于`CVI_NN_Forward()`调用前，`t8`位于该调用返回后；内核另在命令触发、完成IRQ和任务恢复处设置诊断探针],
-    [后处理], [解析TPU的FP32输出，执行置信度过滤、NMS和检测框坐标恢复的时间], [$T_(upright(p o s t)) = t_10 - t_9$], [输出解析、阈值过滤、NMS及检测框坐标恢复], [`t9`位于`get_detections()`调用前，`t10`位于`nms()`与`correct_yolo_boxes()`完成后],
-    [其他视觉开销], [无法归入上述主要阶段的剩余视觉处理时间], [$T_(upright(o t h e r)) =\(t_11 - t_0\)- [\( t_2 - t_1 \) + \( t_4 - t_3 \) + \( t_6 - t_5 \) + \( t_8 - t_7 \) + \( t_10 - t_9 \)]$], [状态整理、时间戳记录、函数边界及取整残差], [由单帧视觉外层墙钟扣除五个已明确计时的主要区间得到，底盘和机械臂动作不计入`t11 - t0`],
-    [视觉总时延], [当前串行模式下一帧图像从请求到产生检测结果的平均响应时间], [$T_(upright(v i s i o n)) = t_11 - t_0 = T_(upright(c a m e r a)) + T_(upright(J P U)) + T_(upright(V P S S)) + T_(upright(T D M A)) + T_(upright(f o r w a r d)) + T_(upright(p o s t)) + T_(upright(o t h e r))$], [从请求图像到得到检测结果，不含底盘和机械臂动作], [`t0`位于单帧视觉处理开始处，`t11`位于检测结果形成处；逐帧生成`StageTimingSample`后累计求平均],
-    [单帧平均置信度], [成功检出帧中，被选为追踪目标的网球框置信度均值], [$overline(C) = 100 / N_d sum_(i = 1)^(N_d) s_i$], [检出帧中面积最大网球框的置信度统计], [用户态`handle_detections()`选择面积最大的检测框，`ConfidenceTotals::record()`累计其置信度],
-  )]
-  , kind: table
-  )
+#tablefigure(
+  booktable(
+    (8.37%, 23.9%, 23.9%, 19.92%, 23.9%),
+    ([指标], [指标含义], [计算方式], [计时范围], [探针位置]),
+    (
+      ([摄像头等待], [视觉线程请求下一幅可用图像后，等待压缩帧就绪并取得该帧的时间], [$T_(upright(c a m e r a)) =\(t_2 - t_1\)-\(k_2 - k_1\)$], [等待新帧、取得最新帧及摄像头接口附加开销], [用户态在`t1、t2`记录摄像头/JPU ioctl墙钟，内核在`k1、k2`记录JPU解码时间，两者相减得到摄像头等待残差]),
+      ([JPU解码], [将MJPEG压缩帧提交给JPEG处理单元并取得YUV422P解码结果的时间], [$T_(upright(J P U)) = k_2 - k_1$], [JPU提交、硬件解码、完成等待及状态检查], [StarryOS内核`decode_jpeg_into_ion()`中，`k1`位于`decode_planar_into()`调用前，`k2`位于解码完成及输出状态检查后]),
+      ([VPSS], [完成YUV422P到RGB的颜色空间转换、缩放、letterbox填充及RGB planar排布的时间], [$T_(upright(V P S S)) = t_4 - t_3$；其中 $T_(upright(s u b m i t)) = v_2 - v_1$，$T_(upright(h a r d w a r e)) = v_3 - v_2$，$T_(upright(r e t u r n)) =\(t_4 - t_3\)-\(v_3 - v_1\)$], [请求校验与硬件启动、硬件处理、中断唤醒及ioctl返回], [用户态在`t3、t4`记录ioctl墙钟；内核在`v1`记录请求入口、`v2`记录硬件启动、`v3`记录完成IRQ]),
+      ([摄像头/JPU等待 + VPSS], [从请求一帧图像到获得可输入TPU的RGB planar图像为止的前端视觉时延], [$T_(upright(f r o n t)) =\(t_2 - t_1\)+\(t_4 - t_3\)$], [从请求图像到获得模型输入图像], [由摄像头/JPU ioctl墙钟与VPSS ioctl墙钟相加，无独立硬件探针]),
+      ([TPU输入TDMA搬运], [在模型正式计算前，将VPSS输出准备到TPU输入张量所需位置的时间], [$T_(upright(T D M A)) = t_6 - t_5$], [将VPSS输出导入TPU输入张量], [`t5`位于`CVI_NN_SetTensorWithAlignedFrames()`调用前，`t6`位于该调用返回后]),
+    ),
+  ),
+  caption: [视觉链路性能指标定义与测量探针（上）],
+)
+
+#tablefigure(
+  booktable(
+    (8.37%, 23.9%, 23.9%, 19.92%, 23.9%),
+    ([指标], [指标含义], [计算方式], [计时范围], [探针位置]),
+    (
+      ([TPU推理], [从提交模型命令流到前向推理完成并返回的时间], [$T_(upright(f o r w a r d)) = t_8 - t_7$], [命令提交、模型计算、内部访存、中断等待及运行时返回], [`t7`位于`CVI_NN_Forward()`调用前，`t8`位于该调用返回后；内核另在命令触发、完成IRQ和任务恢复处设置诊断探针]),
+      ([后处理], [解析TPU的FP32输出，执行置信度过滤、NMS和检测框坐标恢复的时间], [$T_(upright(p o s t)) = t_10 - t_9$], [输出解析、阈值过滤、NMS及检测框坐标恢复], [`t9`位于`get_detections()`调用前，`t10`位于`nms()`与`correct_yolo_boxes()`完成后]),
+      ([其他视觉开销], [无法归入上述主要阶段的剩余视觉处理时间], [$T_(upright(o t h e r)) =\(t_11 - t_0\)- [\( t_2 - t_1 \) + \( t_4 - t_3 \) + \( t_6 - t_5 \) + \( t_8 - t_7 \) + \( t_10 - t_9 \)]$], [状态整理、时间戳记录、函数边界及取整残差], [由单帧视觉外层墙钟扣除五个已明确计时的主要区间得到，底盘和机械臂动作不计入`t11 - t0`]),
+      ([视觉总时延], [当前串行模式下一帧图像从请求到产生检测结果的平均响应时间], [$T_(upright(v i s i o n)) = t_11 - t_0 = T_(upright(c a m e r a)) + T_(upright(J P U)) + T_(upright(V P S S)) + T_(upright(T D M A)) + T_(upright(f o r w a r d)) + T_(upright(p o s t)) + T_(upright(o t h e r))$], [从请求图像到得到检测结果，不含底盘和机械臂动作], [`t0`位于单帧视觉处理开始处，`t11`位于检测结果形成处；逐帧生成`StageTimingSample`后累计求平均]),
+      ([单帧平均置信度], [成功检出帧中，被选为追踪目标的网球框置信度均值], [$overline(C) = 100 / N_d sum_(i = 1)^(N_d) s_i$], [检出帧中面积最大网球框的置信度统计], [用户态`handle_detections()`选择面积最大的检测框，`ConfidenceTotals::record()`累计其置信度]),
+    ),
+  ),
+  caption: [视觉链路性能指标定义与测量探针（下）],
+)
 
 其中，StarryOS 的“摄像头等待”采用摄像头/JPU ioctl 墙钟减去成功 JPU 解码时间得到，因此它是一个残差指标，不等同于纯 USB 传输时间，还可能包含等待新帧、JPEG 临时复制、锁操作和系统调用开销。VPSS 的提交时间表示内核接收请求到硬件启动之间的时间，其中包含参数校验、设备锁等待和寄存器配置，并非单纯的任务排队时间。TPU 输入 TDMA 搬运和 TPU 推理均采用用户态 API 墙钟时间，其中同时包含运行时封装、驱动调用、硬件执行、中断等待和返回用户态的开销。
 
