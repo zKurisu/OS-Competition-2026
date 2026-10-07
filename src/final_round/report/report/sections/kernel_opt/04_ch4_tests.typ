@@ -131,6 +131,16 @@ cat /proc/fault_attrib           # 内核侧分段（读前读后各取一次，
   caption: [内核优化的总体结果。Linux 列为同板实测；"优化后/Linux"小于 1 表示本侧更快。上下文切换与管道往返本轮只做了归因、未改行为，故仍落后一个数量级（见 @sec:kernel-hard）；† 末行两侧的启动锚点不同，只作量级参考，口径见 @sec:kernel-boot],
 )
 
+按判定分三档读这张表。*已反超*的是 8 MiB 页缓存顺序写（#k-seqwrite-post MiB/s 对
+#k-seqwrite-lin MiB/s）；*持平或接近*的是 8 MiB 写 + `fsync`（#k-fsync-post ms 对
+#k-fsync-lin ms，1.18 倍）、缓存命中读（warm #k-read-warm-post MB/s 对
+#k-read-warm-lin MB/s）与空系统调用（#k-getpid-post ns 对 #k-getpid-lin ns，
+#k-getpid-ratio 倍）；*仍有差距*的是上下文切换（#k-ctx-post µs 对 #k-ctx-lin µs）、
+管道往返（#k-ppong-post µs 对 #k-ppong-lin µs）、每轮新缓冲的缓存命中读
+（#k-read-fresh-post MB/s 对 #k-read-fresh-lin MB/s）与 ext4 `open`+`read`+`close`
+（#k-openread-post µs 对 #k-openread-lin µs，10.8 倍）。三档的成因与下一步改法分别写在
+@sec:kernel-hard 的对应小节，本节余下部分给出各档的逐项数据。
+
 === 系统调用与进程间通信
 
 #tablefigure(
