@@ -33,6 +33,9 @@ TARGETS=(
   "statements/innovation.typ|项目创新说明.pdf"
   "statements/division.typ|成员分工及主要贡献说明.pdf"
   "report/jqj.typ|第二部分-追球推理链路.pdf"
+  # 内核优化分册：自成一册（有自己的图目录与数字表），暂不并入上表正文；
+  # 它不用 --input figures=，编译时也不需要 sg2002-eval/ 下的图。
+  "report/kernel_opt/main.typ|内核优化分册.pdf"
 )
 
 built=0
