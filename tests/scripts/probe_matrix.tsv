@@ -1,0 +1,36 @@
+# 探针清单：probe<TAB>类别<TAB>测什么<TAB>关键输出/判据<TAB>来源与关联工作
+syslat	syscall/空洞	空系统调用（getpid）往返耗时，用于 /proc/icache_flush 的 A/B	每轮 ns/call	commit 0a627ecb7 perf(uspace): 返回用户态不再每次刷 I-cache 10.6→3.0 µs
+syscost2	syscall/归因	按"不同 handler 体量"二分入口路径成本（报告 §05 方法）	SYSCALL 分段 ns	commit ce454eb52 chore(diag): B2 系统调用循环开关
+syscost	board/harness	报告 §05 的原始 syscost（单一总耗时口径）；细分归因被 probes/syscall/syscost2.c 取代，但 harness 仍引用它	ns/call	报告 §05
+sysattr	syscall/单点	只跑一种系统调用，读 /proc/fault_attrib 前后差值得到干净分解	SYSATTR call/uctx_enter/handle/post	commit ce454eb52 / 1f70bafef
+faultcost	mm/缺页	首触成本 vs 区域大小 + madvise A/B（替代不可用的 thp_* 探针）	ns/page、是否大页	commit ec6374d9c/371ffc0dd 缺页预取与批量缺页
+faultattrib	mm/归因	配合内核 /proc/fault_attrib，逐阶段读累计计数	FA_* 分段	commit 97ccc78a3 apply 段再拆三段
+fa_min	mm/探针自检	最小检查：/proc/fault_attrib 是否可读	OK / errno	内核诊断接口存在性
+popcost	mm/批量	MAP_POPULATE 批量 vs 逐页触碰的每页成本	批/页 比值	commit 11146c8a6 uaccess 整段 populate_area
+bloat	mm/正确性	顺序预取是否对跨步/随机访问超额预取（RSS）	seq/stride/rand RSS	commit bcd2d4e71/ec6374d9c 预取窗口
+touch64	mm/取样	一次 64 MiB 私有匿名首触的冷态干净取样点	us/page	commit 130a98059/371ffc0dd
+mmcoherence	mm/正确性	munmap 后同址重映射是否还能读到旧物理页（TLB 残留）	非零即失败	commit c16994af2 延迟失效路径不再逐页刷 TLB
+memops_wordwise	mm/宿主自检	字长循环 mem* 实现与 libc 的随机对齐/重叠对拍	PASS/FAIL	commit 760ef6d08 mem* 从逐字节改字长循环
+readprobe	fs/读路径	缓存命中大读：预映射缓冲 vs fresh 缓冲分开量	us/page、MB/s	commit 5f1b870dd 读路径页已缓存快路径
+readprobe2	fs/读路径	把 fresh 缓冲拆成 mmap/read/munmap 三段	三段 us/page	commit 584b07fa7 uaccess 整段已映射快路径
+fsprobe	fs/写路径	主机文件系统写路径边界与行为	写上限、EBUSY 边界	commit 29e264fd0 页缓存上限 512→4096 页
+cowtest	fs/mm 正确性	批量缺页整块分配 + 子租约后父子副本是否正确	PASS/FAIL	commit 371ffc0dd A3d 批量缺页
+leakchk	mm	mmap/touch/munmap 循环是否泄漏 MemFree	每次迭代 MemFree	thp_protnone 在 SG2002 不可用后的替代
+schedprobe	sched	单核上真正有意义的量：单次操作成本与 sleep 唤醒质量	per-op ns	commit 82ddd33b5 调度决策八段
+forkcost	sched/fork	把 fork 拆成父侧返回与等子退出，判定 activate 是否同步切换	两段 ms	commit 10e67ae8d C1 fork/exit/调度分段
+insbench	sched/标定	512 KiB 分散插入搬移的应然速度（判定内核页索引是否合理）	GB/s	commit 130a98059 CowPageIndex 插入
+rusage_acct	sched/记账	rusage 统计是否与实际 CPU 时间一致	字段对比	报告 §04 调度/记账
+tickacct_desched	sched/记账	tick 记账与 desched 归因	CAS 输出	报告 §04；BENCHMARKING/TICKACCT 文档
+ppong	sched/IPC	管道 ping-pong 往返（上下文切换 + 唤醒链）	ns/往返	commit a8b0dd9a8 ctx_switch 全路径归因
+cpuprobe	cpu	每核自校准 rdtime 速率	MHz	harness cpuprobe，用于 SG2002 单 hart 校准
+membw	memory	首触 + 热态内存带宽（默认 32 MiB，适配 236 MB 板）	MB/s	harness membw
+mem_bw2	memory	内存带宽第二口径（与 membw 互为交叉验证）	MB/s	报告 §03
+thp_bw / thp_narrow / thp_nohugepage / thp_protnone / thp_reenable	mm/大页	报告 §03 的 THP 系列；SG2002 上 thp_protnone 需 2 GiB churn，**不可用**，仅保留作对照	fail/超时	faultcost.c 头注释说明为何改用 faultcost
+s6_probe	dev/相机	cmd4（JPU 解码）逐次成败序列，定位 JPU 卡死点	O/errno 序列	side_workspace S6 相机链路
+cam_async_probe	dev/相机	/dev/cvi-usb-camera0 异步取流 ioctl 6..13 全覆盖	各 ioctl 返回	TPU/相机移植验收 ①
+cam_ion_probe	dev/相机	ioctl 13 GET_LATEST_YUV_ION：ION alloc → INIT/START_ASYNC → 取 YUV	seq/len/stride/jpu_us	TPU/相机移植验收 ①
+vdec_poison	dev/JPU	给 JPU 喂坏码流，验证出错后同一 boot 内能否恢复	各步返回值	JPU 错误恢复
+early_wifi_probe	net	shell 一出现就立刻连 WiFi，验证 90 s 闸门是否已去掉	uptime→关联用时	commit ce9b42a92 DHCP 宽限期 2 s→300 ms
+wifi_stress	net	量化 WiFi 链路累计传输多少字节后静默失效	累计 MiB	WiFi 静默失效定位
+starry-harness-sg2002.sh	board/套件	板端一键跑全部探针（StarryOS 侧，dash 兼容）	HS_* 行 + DONE	harness/HARNESS.md
+linux-harness-sg2002.sh	board/套件	板端一键跑全部探针（厂商 Linux 侧，同一批二进制）	HL_* 行 + DONE	“同一 ELF 两侧对比”原则

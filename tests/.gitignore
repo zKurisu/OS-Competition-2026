@@ -1,0 +1,12 @@
+# 交叉编译产物（可用 scripts/build_probes.sh 随时重建）
+build/
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 板卡运行结果：保留目录结构，忽略原始日志
+results/*.log
+results/*.txt
+results/*.json
+!results/README.md
