@@ -4,14 +4,14 @@
 //  来源：final_round/workspace/doc/jqj/doc/第二部分.md
 //  版式：复用 report/theme.typ（与主报告同一套版式），但不并入主报告
 //  图片：figures/jqj/*.png
-//  编译：typst compile --root . report/jqj.typ jqj.pdf
+//  编译：typst compile --root . report/sections/jqj/jqj.typ jqj.pdf
 //
 //  正文由 Markdown 转换而来，标题里已经带了编号（"4 追球推理流程"这种），
 //  所以关掉 Typst 的自动编号，避免出现两套编号。
 // ============================================================
-#import "theme.typ": *
-#import "lib.typ": *
-#import "../data/meta.typ": *
+#import "../../theme.typ": *
+#import "../../lib.typ": *
+#import "../../../data/meta.typ": *
 
 #show: report
 #set heading(numbering: none)
@@ -44,7 +44,7 @@
 = 4 追球推理流程
 本系统面向 SG2002 平台构建了一条由硬件加速器协同完成的网球视觉推理链路，整体采用“异步采集---硬件解码---硬件预处理---神经网络推理---检测后处理---运动控制”的处理流程。摄像头通过通用串行总线（Universal Serial Bus，USB）视频设备类协议（USB Video Class，UVC）输出分辨率为 640×480 的码流；该码流由JPEG压缩图像连续组成，格式称为MJPEG（Motion JPEG）。StarryOS 内核中的后台采集任务持续接收并组装 UVC 数据包，使用单调递增的帧序号发布最新完整帧。前台视觉线程只获取序号更新的图像；当图像采集速度高于推理速度时，系统允许旧帧被新帧覆盖，从而避免历史图像在队列中积压，保证机器人使用尽可能接近当前环境状态的图像进行闭环控制。
 
-#figure(image("../figures/jqj/1.png", width: 72%), caption: none)
+#figure(image("../../../figures/jqj/1.png", width: 72%), caption: none)
 
 == 4.1 JPU硬件解码
 获得最新 MJPEG 帧后，系统使用 JPEG 处理单元（JPEG Processing Unit，JPU）完成硬件解码。当前摄像头的 JPEG 图像采用 4:2:2 色度采样，因此 JPU 将其解码为 640×480 的亮度---色度 4:2:2 平面格式（YUV 4:2:2 Planar，YUV422P），并通过直接存储器访问（Direct Memory Access，DMA）将亮度 Y、色度 Cb 和色度 Cr 三个平面直接写入 ION 内存分配器提供的共享缓冲区；ION 是该分配器的专有名称。该缓冲区同时具有中央处理器（Central Processing Unit，CPU）虚拟地址和硬件可访问的物理地址，可被后续视频处理模块直接使用，避免将整幅 YUV 图像复制到普通用户态临时内存。针对摄像头偶发的损坏 JPEG，驱动还实现了异常帧恢复机制；当 JPU 出现码流耗尽、超时或输出长度异常时，系统会丢弃当前帧、复位解码器并等待更新帧，而不会因单帧错误导致视觉线程永久阻塞。
@@ -61,7 +61,7 @@ TPU 前向计算完成后，用户态直接解析运行时管理的 32 位浮点
 == 4.5 运动控制追球
 运动控制层从经过阈值过滤和 NMS 的检测结果中选择面积最大的网球框作为当前追踪目标，以降低远处小目标对近距离抓取任务的干扰。系统使用检测框水平中心坐标表示网球相对于夹爪中心线的方向偏差，并以检测框面积占整幅图像面积的比例近似描述网球距离。当未检测到网球时，机器人执行原地旋转搜索；检测到远距离网球后，根据目标位于期望中心的左侧、右侧或中心区域，分别执行左转、右转或直行接近。目标接近抓取区域后，系统扩大中心容差并缩短转向脉冲，减少离散视觉反馈造成的左右过冲。当检测框面积比例达到 0.55、目标中心进入夹爪有效区域且连续两帧确认成立时，底盘停止并触发原有机械臂抓取序列。若网球面积比例达到 0.85，系统将其判定为距离过近，先执行轻微后退再开始抓取。由此，系统实现了从图像采集、硬件推理、空间位置估计到车辆转向、接近和机械臂抓取的完整视觉闭环。
 
-#figure(image("../figures/jqj/4.5.png", width: 72%), caption: none)
+#figure(image("../../../figures/jqj/4.5.png", width: 72%), caption: none)
 
 = 5 推理链路优化
 本文讨论的正式视觉链路以当前 640×640 网球模型为准。输入摄像头输出 640×480、Motion JPEG（MJPEG，运动 JPEG）压缩图像，JPEG 图像的亮度分量采样因子为 `0x21`，即 4:2:2 色度采样。模型输入张量为 `1×3×640×640`、8 位无符号整数、RGB planar、NCHW（Number--Channel--Height--Width，批次---通道---高度---宽度）布局；模型输出张量为 `[1,5,8400,1]` 的 32 位浮点数。正式模型文件为 `model/yolov8n_tennis_v2.cvimodel`.
@@ -114,14 +114,14 @@ TPU 前向计算完成后，用户态直接解析运行时管理的 32 位浮点
 
 最终正式链路如下：
 
-#figure(image("../figures/jqj/2.png", width: 72%), caption: none)
+#figure(image("../../../figures/jqj/2.png", width: 72%), caption: none)
 
 该架构的核心不是把所有工作都放进内核，而是在最适合的位置完成每项工作：内核负责设备生命周期、物理缓冲区访问、异步采集、硬件提交、中断和异常恢复；用户态负责模型契约校验、设备组合、检测后处理和机器人策略。这样既保留了策略迭代的灵活性，也避免让用户态重复实现硬件驱动职责。
 
 == 5.2 异步采集与最新帧调度机制
 原始实现采用同步采集模式，视觉线程只有在需要执行推理时才向摄像头请求图像，并持续阻塞至通用串行总线视频类（USB Video Class，UVC）数据包被组装为一幅完整图像。在这种模式下，图像采集、JPEG 解码、图像预处理和张量处理器（Tensor Processing Unit，TPU）推理严格串行，摄像头无法在视觉线程执行推理期间准备下一帧。如果请求时刻刚好错过上一幅图像，视觉线程还可能等待接近一个完整的摄像头帧周期。若使用先进先出队列保存所有采集帧，当图像生产速度高于推理速度时，又会形成历史帧积压，使机器人基于过时图像进行运动决策。因此，本系统没有追求处理摄像头产生的每一帧，而是以降低图像帧龄为目标，使每次视觉决策尽可能使用最新的完整图像。
 
-#figure(image("../figures/jqj/3.png", width: 72%), caption: none)
+#figure(image("../../../figures/jqj/3.png", width: 72%), caption: none)
 
 为此，摄像头驱动在 `cvi_usb_camera.rs` 中引入了 `AsyncCapture` 和 `LatestFrameStore`。`AsyncCapture` 负责管理后台采集任务的启动、停止、等待和消费状态。用户态通过 `CVI_CAMERA_IOCTL_START_ASYNC` 启动后台采集线程，驱动会检查其运行状态，避免重复启动多个线程并发访问同一个 UVC 端点。设备关闭或用户态发出 `CVI_CAMERA_IOCTL_STOP_ASYNC` 请求时，驱动设置停止标志并唤醒相关等待者，使后台任务能够有序退出。这样，图像采集从前台视觉线程中分离出来，使摄像头可以在前台执行解码、预处理和推理时准备下一幅图像。
 
@@ -134,7 +134,7 @@ TPU 前向计算完成后，用户态直接解析运行时管理的 32 位浮点
 == 5.3 JPU 硬件解码优化
 摄像头输出的MJPEG码流由一系列相互独立的 JPEG 图像组成。早期处理链路如果CPU完成 JPEG 解码，就需要在单核 C906 上执行熵解码、反量化、逆离散余弦变换（Inverse Discrete Cosine Transform，IDCT）和颜色分量重建等计算密集型操作。这些任务不仅占用大量处理器时间，还会与设备驱动、检测后处理和机器人控制状态机竞争唯一的大核资源。为降低 CPU 负载，系统将 JPEG 解码迁移到 SG2002 内置的 JPEG 处理单元（JPEG Processing Unit，JPU）。驱动通过 `decode_planar_into()` 将经过完整性校验的 JPEG 码流提交给 JPU，由专用硬件完成码流解析和像素重建。CPU 仅负责配置寄存器、提交任务、等待完成中断、检查硬件状态以及解析输出格式，不再逐像素执行 JPEG 解码算法。实测 JPU 解码阶段的平均时延约为 1.6～1.7 ms，说明 JPEG 解码已经从主要的软件计算负担转变为时延较低的固定功能硬件任务。
 
-#figure(image("../figures/jqj/5.3.png", width: 72%), caption: none)
+#figure(image("../../../figures/jqj/5.3.png", width: 72%), caption: none)
 
 JPU 的输出格式并不能由应用程序任意指定，而是首先取决于输入 JPEG 的色度采样方式。JPEG 图像的帧起始标记（Start of Frame，SOF）记录了各颜色分量的水平和垂直采样因子。当前摄像头输出的 JPEG 中，亮度分量 Y 的采样因子为 `0x21`，表示水平方向采用二比一的亮度---色度采样，而垂直方向不进行色度下采样，因此实际格式为 4:2:2。JPU 按照这一采样关系自然输出三平面的 YUV422P 数据：640×480 图像的 Y 平面占 307,200 字节，Cb 和 Cr 平面各占 153,600 字节，总数据量为 614,400 字节。NV12 则属于 4:2:0 半平面格式，要求色度在水平和垂直方向都减半，并将 U、V 分量交织存储。若把当前 JPU 输出的 4:2:2 三平面数据直接解释为 NV12，将同时造成色度采样比例和内存布局错误。因此，正式链路保留 JPU 的 YUV422P 输出，再由视频处理子系统（Video Processing Subsystem，VPSS）完成正确的色度重采样、颜色空间转换和模型输入格式生成。对于非 4:2:0 JPEG，驱动中的 `CVI_CAMERA_IOCTL_GET_LATEST_NV12_FRAME` 会拒绝执行不符合输入采样格式的转换。
 
@@ -149,7 +149,7 @@ JPU 运行期间，目标 ION 缓冲区的访问所有权属于硬件设备。�
 == 5.4 ION 共享物理缓冲区
 在原始视觉处理链路中，不同硬件模块通常分别维护自己的输入和输出缓冲区。图像从一个模块传递到另一个模块时，需要先复制到普通用户态内存，再复制到下一个设备能够访问的缓冲区。对于640×480的YUV422P图像，单帧数据量为614,400字节；对于640×640的RGB planar图像，单帧数据量达到1,228,800字节。如果JPU、视频处理子系统（Video Processing Subsystem，VPSS）和张量处理器（Tensor Processing Unit，TPU）之间均通过中央处理器（Central Processing Unit，CPU）复制整幅图像，单帧将产生数MB的额外内存读写。这些复制不仅直接占用单核C906的执行时间，还会与硬件加速器竞争双倍数据速率同步动态随机存取存储器（Double Data Rate Synchronous Dynamic Random-Access Memory，DDR SDRAM）的带宽，进而间接延长JPU、VPSS和TPU的硬件执行时间。
 
-#figure(image("../figures/jqj/5.4.png", width: 72%), caption: none)
+#figure(image("../../../figures/jqj/5.4.png", width: 72%), caption: none)
 
 为减少大尺寸图像在不同设备之间的重复复制，系统建立了两级ION共享物理缓冲区。ION是内存分配器的专有名称，并非英文首字母缩写。其中，source ION作为JPU的输出缓冲区和VPSS的输入缓冲区，destination ION作为VPSS的输出缓冲区和TPU的输入缓冲区。各硬件模块通过同一缓冲区的物理地址直接衔接，用户态主要负责传递ION文件描述符、缓冲区偏移、有效长度、平面步长、图像格式和时间戳等元数据，不再通过普通`Vec<u8>`在模块之间复制完整的YUV或RGB图像。由此，图像数据的传递方式从“CPU读取并重新写入”转变为“硬件在共享物理内存上按顺序交接”.用户态在`VpssRgbPipeline::open()`中为source ION分配`SOURCE_CAPACITY=2×1024×1024`字节的物理缓冲区，并使用`akars-jpu`作为分配标签。该容量明显大于当前640×480 YUV422P图像所需的614,400字节，用于容纳内存页对齐、硬件平面对齐、不同JPEG采样格式以及未来可能扩展的输入分辨率，同时为内核的偏移和容量检查提供明确上限。当前图像在source ION中的有效布局由JPU驱动返回：Y平面起始于`source_paddr + y_offset`，分辨率为640×480、步长为640字节；Cb平面起始于`source_paddr + cb_offset`，分辨率为320×480、步长为320字节；Cr平面起始于`source_paddr + cr_offset`，其尺寸和步长与Cb平面相同。各平面的偏移、长度和步长均由摄像头/JPU ioctl明确返回，而不是由用户程序根据固定公式硬编码。即使驱动以后改变平面对齐方式，用户态也可以继续依据应用二进制接口（Application Binary Interface，ABI）提供的元数据构造VPSS任务。destination ION的容量根据模型输入尺寸计算，即`output_width × output_height × 3`，并向4 KiB内存页边界对齐。对于640×640模型输入，有效图像载荷为1,228,800字节。VPSS按照RGB planar格式依次写入红、绿、蓝三个颜色平面：R平面从偏移0开始，G平面从偏移`640×640`开始，B平面从偏移`2×640×640`开始，每个平面的行步长均为640字节。该内存布局与模型要求的批次、通道、高度、宽度（Number, Channel, Height, Width，NCHW）张量布局一致，因此不再需要CPU执行通道交织转平面、通道顺序调整或逐像素重排。VPSS完成写入后，TPU运行时可以直接使用该缓冲区作为模型输入数据来源。
 
@@ -162,7 +162,7 @@ ION缓冲区由`IonAllocation::allocate()`统一申请。分配过程使用直�
 == 5.5 扩展 VPSS 驱动，直接接收 JPU 输出的 YUV422P
 项目早期的视频处理子系统（Video Processing Subsystem，VPSS）驱动主要围绕NV12输入格式设计。原有源帧抽象只包含亮度Y平面和交织UV平面两个物理地址，适用于4:2:0半平面图像。然而，当前摄像头输出的运动联合图像专家组（Motion JPEG，MJPEG）采用4:2:2色度采样，经过JPEG处理单元（JPEG Processing Unit，JPU）解码后得到的是Y、Cb、Cr三个平面相互独立的YUV422P图像。二者在平面数量、色度采样比例和内存布局上均不兼容，因而在JPU输出与VPSS输入之间形成了格式断点。如果继续使用原有NV12接口，只能将YUV422P错误标记为NV12、由中央处理器（Central Processing Unit，CPU）执行一次YUV422P到NV12的全帧转换，或者放弃VPSS并继续使用CPU完成颜色转换和缩放。第一种方案会产生错误图像，后两种方案则会引入整图复制和软件预处理开销。
 
-#figure(image("../figures/jqj/5.5.png", width: 72%), caption: none)
+#figure(image("../../../figures/jqj/5.5.png", width: 72%), caption: none)
 
 为消除这一格式断点，内核VPSS驱动新增了`Yuv422PlanarFrame`数据结构和`SourceFrame::Yuv422Planar`源帧类型，同时使用`RgbPlanarFrame`和`DestinationFrame`描述模型输入端的三平面RGB目标图像。用户态与内核态共同定义`VpssRunYuv422pRgb`请求结构，并通过`CVI_VPSS_IOCTL_RUN_YUV422P_RGB`提交离线硬件任务。该接口直接表达“JPU输出的YUV422P三平面图像经过VPSS转换为RGB planar三平面图像”的数据契约，不再依赖驱动根据缓冲区数量或格式编号进行隐式推断。由此，JPU输出可以直接作为VPSS输入，不需要在两者之间插入CPU颜色格式转换。
 
@@ -189,7 +189,7 @@ wake_return_us = ioctl_wall_us - queue_us - hardware_us
 
 该问题的根因是单核StarryOS中的中断唤醒与任务调度之间存在较长延迟。VPSS运行期间，提交线程进入等待队列；硬件完成后，中断请求（Interrupt Request，IRQ）处理程序记录完成状态并唤醒等待者。但是，普通唤醒仅将线程重新放入就绪队列，并不保证其立即获得CPU。当前任务或其他后台线程仍可能继续使用剩余时间片，导致VPSS已经完成，而ioctl调用线程仍要等待下一个调度周期。由此可见，硬件完成中断的到达并不等于用户线程已经恢复执行。
 
-#figure(image("../figures/jqj/5.6.png", width: 72%), caption: none)
+#figure(image("../../../figures/jqj/5.6.png", width: 72%), caption: none)
 
 针对正常VPSS任务硬件时间约为1.5 ms的特点，驱动采用“短观察窗口加等待队列”的两阶段完成机制。任务提交后的最初约3 ms内，调用线程对软件完成状态进行有界观察；如果IRQ在该窗口内发布完成状态，线程可以直接执行收尾并返回，从而避免一次长时间片级的休眠与重新调度。如果3 ms内任务仍未完成，线程就转入等待队列，并保留中断唤醒和100 ms绝对超时，防止硬件异常时无限占用CPU。该机制不是无界忙轮询。3 ms窗口根据VPSS正常执行时间设定，超过窗口后自动进入休眠，因此能够在常规任务中降低返回时延，在异常任务或较长任务中保持系统公平性。观察循环只检查由IRQ路径发布的软件完成标志，不直接读取并清除硬件的写一清零（Write One to Clear，W1C）中断状态。中断状态寄存器仍由IRQ处理程序统一清理，避免任务线程与中断处理程序竞争清除同一事件而造成完成中断丢失。
 
@@ -200,7 +200,7 @@ wake_return_us = ioctl_wall_us - queue_us - hardware_us
 == 5.7 模型输入契约校验与正确的 TPU 输入导入
 张量处理器（Tensor Processing Unit，TPU）的模型输入不能被简单理解为一段长度相同的字节数据。输入张量的形状、元素类型、颜色通道顺序、内存布局、量化参数、行步长、对齐方式和设备内存类型共同构成模型输入契约。即使缓冲区长度同为`3×640×640`字节，如果将蓝绿红（Blue, Green, Red，BGR）误作红绿蓝（Red, Green, Blue，RGB），将高度---宽度---通道（Height--Width--Channel，HWC）误作通道---高度---宽度（Channel--Height--Width，CHW），或者忽略运行时要求的对齐步长，TPU仍可能正常完成前向计算，但输出结果会稳定地偏离正确值。因此，模型输入格式需要像硬件寄存器接口一样被严格校验。
 
-#figure(image("../figures/jqj/5.7.1.png", width: 72%), caption: none)
+#figure(image("../../../figures/jqj/5.7.1.png", width: 72%), caption: none)
 
 模型加载后，`YoloModel::open()`依次调用`CVI_NN_RegisterModel()`和`CVI_NN_GetInputOutputTensors()`，获取模型的输入、输出张量描述。程序随后输出`AKARS_TPU_INPUT`诊断信息，包括张量形状、维数、元素格式、元素数量、内存大小、物理地址、内存类型、像素格式、对齐标志、量化比例、零点、均值和缩放系数。只有这些属性与视频处理子系统（Video Processing Subsystem，VPSS）的输出布局一致时，程序才允许进入正式推理流程。该检查可以在运行初期发现模型版本、用户态程序和VPSS输出格式之间的不匹配，避免把输入契约错误误判为模型精度问题。
 
@@ -269,7 +269,7 @@ done_to_user   = 内核完成收尾到运行时调用返回用户态
 
 在多核系统中，worker可以与提交线程并行运行；但在单核C906上，每次任务交接都可能错过当前调度时间片。早期测试中，`submit_to_worker`约为20.899 ms，硬件执行区间约为20.302 ms，完成后返回用户态约为5.229 ms。虽然该阶段的硬件统计仍混合了输入TDMA与compute任务，但已经能够确认软件排队与硬件执行处于同一量级。
 
-#figure(image("../figures/jqj/5.8.1.png", width: 72%), caption: none)
+#figure(image("../../../figures/jqj/5.8.1.png", width: 72%), caption: none)
 
 当前正式路径启用同步直通执行，由原始提交线程在内核中完成完整任务生命周期：
 
@@ -291,7 +291,7 @@ IRQ发布完成状态并唤醒提交线程
 
 提交线程首先取得可睡眠的全局`TPU_RUN_LOCK`，确保同一时刻只有一个命令流占用TPU。随后完成任务分类、地址验证、寄存器配置和硬件启动。硬件执行期间，提交线程在IRQ等待点休眠并让出CPU；IRQ到达后直接唤醒同一个提交线程，由其完成状态检查并返回用户态。任务上下文不再转交给中间worker。
 
-#figure(image("../figures/jqj/5.8.3.png", width: 72%), caption: none)
+#figure(image("../../../figures/jqj/5.8.3.png", width: 72%), caption: none)
 
 `TPU_RUN_LOCK`必须使用可睡眠锁，不能在持有自旋锁时等待硬件。如果跨越硬件执行阶段持有自旋锁，可能长期禁止调度，并导致单核系统死锁。同步直通仍然采用阻塞式IRQ等待，而不是持续忙轮询；其优化对象是任务所有权交接和调度层级。
 
@@ -336,7 +336,7 @@ VPSS完成返回路径优化后，其平均时延由约45 ms下降至约1.6 ms�
 
 StarryOS常规`WaitQueue::notify_one()`按照普通策略将等待任务加入就绪队列。在时间片轮转（Round-Robin，RR）调度下，刚被中断唤醒的TPU提交线程可能被放置在运行队列尾部，需要等待其他任务用完时间片。对于硬件执行时间不足1 ms的TDMA任务，几十毫秒的恢复等待会完全掩盖硬件性能。
 
-#figure(image("../figures/jqj/5.11.png", width: 72%), caption: none)
+#figure(image("../../../figures/jqj/5.11.png", width: 72%), caption: none)
 
 为缩短中断后的恢复路径，调度器新增`WakeupPlacement::{Normal, Front}`，运行队列支持将被唤醒任务插入队首，等待队列则增加`notify_one_front_force_from_irq()`。当TPU中断处理程序确认当前任务属于`tdma_only`时，会将对应提交线程放置到就绪队列前部，使其在中断返回后的下一次调度中优先恢复。第一次引入队首唤醒后，约44 ms的长尾仍然存在。进一步分析发现，驱动原先每100 μs执行一次超时轮询，而正常TDMA约在0.8 ms后完成。在真实中断到达之前，等待线程已经多次因定时器超时离开IRQ等待队列并重新检查状态。当IRQ真正到达时，等待队列中可能已不存在对应线程，队首唤醒因而无法找到提升对象。该问题本质上是高频定时轮询与真实硬件中断之间的竞态。为恢复IRQ作为正常完成主路径，驱动将`WAIT_POLL_INTERVAL_US`从100 μs调整为2,000 μs，同时保持约10 s的总超时。2 ms大于正常TDMA的0.8～1.1 ms，因此大多数任务会先由真实IRQ唤醒；只有在中断丢失或设备异常时，定时轮询才作为兜底机制检查硬件状态。轮询总次数根据总超时重新计算，因此故障恢复窗口没有缩短。
 

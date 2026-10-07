@@ -32,10 +32,12 @@ TARGETS=(
   "report/main.typ|项目说明书.pdf"
   "statements/innovation.typ|项目创新说明.pdf"
   "statements/division.typ|成员分工及主要贡献说明.pdf"
-  "report/jqj.typ|第二部分-追球推理链路.pdf"
-  # 内核优化分册：自成一册（有自己的图目录与数字表），暂不并入上表正文；
-  # 它不用 --input figures=，编译时也不需要 sg2002-eval/ 下的图。
-  "report/kernel_opt/main.typ|内核优化分册.pdf"
+  # 视觉链路的独立稿：源文件已移入 sections/jqj/（与主报告正文同一份内容）
+  "report/sections/jqj/jqj.typ|第二部分-追球推理链路.pdf"
+  # 内核优化分册：内容已并入主报告正文的技术理论/项目介绍/实验测试/实现难点/总结五章；
+  # 这里仍单独排一册，便于评审只看内核部分。它不用 --input figures=，
+  # 编译时也不需要 sg2002-eval/ 下的图。
+  "report/sections/kernel_opt/main.typ|内核优化分册.pdf"
 )
 
 built=0
